@@ -71,7 +71,7 @@ def get_features_helper(image_encoder, dataloader, device):
     with torch.no_grad():
         for batch in tqdm(dataloader):
             batch = maybe_dictionarize(batch)
-            features = image_encoder(batch['images'].cuda())
+            features = image_encoder(batch['images'].to(device))
 
             all_data['features'].append(features.cpu())
 

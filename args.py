@@ -126,7 +126,12 @@ def parse_arguments():
         help="Number of evaluation points used to find optimal coefficient in task arithmetic.",
     )
     parsed_args = parser.parse_args()
-    parsed_args.device = "cuda" if torch.cuda.is_available() else "cpu"
+    if torch.backends.mps.is_available():
+        parsed_args.device = "mps"
+    elif torch.cuda.is_available():
+        parsed_args.device = "cuda"
+    else:
+        parsed_args.device = "cpu"
 
     if parsed_args.load is not None and len(parsed_args.load) == 1:
         parsed_args.load = parsed_args.load[0]

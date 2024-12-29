@@ -15,7 +15,7 @@ def torch_save(model, save_path):
 
 
 def torch_load(save_path, device=None):
-    model = torch.load(save_path, map_location="cpu")
+    model = torch.load(save_path, map_location=device)
     if device is not None:
         model = model.to(device)
     return model
@@ -35,7 +35,10 @@ def train_diag_fim_logtr(
             dataset_name: str,
             samples_nr: int = 2000):
     
-    model.cuda()
+    if args.device == "cuda":
+        model.cuda()
+    elif args.device == "mps":
+        model.to(torch.device("mps"))
     if not dataset_name.endswith('Val'):
         dataset_name += 'Val'
 
