@@ -6,6 +6,7 @@ import torch
 from tqdm.auto import tqdm
 from datasets.common import get_dataloader, maybe_dictionarize
 from datasets.registry import get_dataset
+from collections import OrderedDict
 
 
 def torch_save(model, save_path):
@@ -14,11 +15,13 @@ def torch_save(model, save_path):
     torch.save(model, save_path)
 
 
-def torch_load(save_path, device=None):
-    model = torch.load(save_path, map_location=device)
-    if device is not None:
-        model = model.to(device)
-    return model
+def torch_load(save_path, device='cpu'):
+    state_dict = torch.load(save_path, map_location=device)
+    if isinstance(state_dict, OrderedDict):
+        model = ImageEncoder({'model': 'ViT-B-32', 'device': device})
+        model.load_state_dict(state_dict)
+        return model
+    return state_dict.to(device)
 
 
 class DotDict(dict): 
