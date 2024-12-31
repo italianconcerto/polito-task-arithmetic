@@ -105,10 +105,8 @@ def main():
     args = parse_arguments()
     datasets = ["DTD", "EuroSAT", "GTSRB", "MNIST", "RESISC45", "SVHN"]
     
-    # Load pretrained model path
     pretrained_path = f"{args.save}/pretrained.pt"
     
-    # Build task vectors
     print("Building task vectors...")
     task_vectors = {}
     for dataset_name in tqdm(datasets):
@@ -118,8 +116,11 @@ def main():
         
         task_vector = {}
         for key in pretrained_state.keys():
-            if key in finetuned_state:
-                task_vector[key] = finetuned_state[key] - pretrained_state[key]
+            if key not in finetuned_state:
+                continue
+            if pretrained_state[key].shape != finetuned_state[key].shape:
+                continue
+            task_vector[key] = finetuned_state[key] - pretrained_state[key]
         task_vectors[dataset_name] = task_vector
     
     # Find optimal alpha

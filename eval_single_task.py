@@ -39,7 +39,8 @@ def evaluate_single_task(args, dataset_name):
     
     # Load fine-tuned weights
     checkpoint_path = f"{args.save}/{dataset_name}_finetuned.pt"
-    model.image_encoder = torch.load(checkpoint_path)
+    state_dict = torch.load(checkpoint_path, map_location=args.device)
+    model.image_encoder.load_state_dict(state_dict)
     model = model.to(args.device)
     
     results = {}
