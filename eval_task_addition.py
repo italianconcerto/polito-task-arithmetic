@@ -1,24 +1,22 @@
 import json
-import numpy as np
 import torch
-from tqdm.auto import tqdm
+from tqdm import tqdm
 from args import parse_arguments
-from datasets.common import get_dataloader, maybe_dictionarize
+from datasets.common import get_dataloader
 from datasets.registry import get_dataset
-from modeling import ImageClassifier, ImageEncoder
+from modeling import ImageClassifier
 from heads import get_classification_head
-from task_vectors import NonLinearTaskVector
 from utils import torch_load, DotDict
 
-def evaluate(model, data_loader, args):
+def evaluate(model, loader, args):
     model.eval()
     correct = 0
     total = 0
     
     with torch.no_grad():
-        for batch in data_loader:
-            batch = maybe_dictionarize(batch)
-            x, y = batch['images'].to(args.device), batch['labels'].to(args.device)
+        for batch in loader:
+            x = batch['images'].to(args.device)
+            y = batch['labels'].to(args.device)
             
             outputs = model(x)
             _, predicted = outputs.max(1)
@@ -34,18 +32,20 @@ def evaluate_multitask_model(args, datasets, task_vectors, alpha, base_encoder):
     encoder_args = DotDict({
         'model': 'ViT-B-32',
         'device': args.device,
-        'openclip_cachedir': args.openclip_cachedir,
-        'cache_dir': args.cache_dir
+        'openclip_cachedir': getattr(args, 'openclip_cachedir', None),
+        'cache_dir': getattr(args, 'cache_dir', None)
     })
     encoder = torch_load(base_encoder, device=args.device, encoder_args=encoder_args)
     
     # Combine task vectors
-    combined_task_vector = None
+    combined_task_vector = {}
     for dataset_name in datasets:
-        if combined_task_vector is None:
-            combined_task_vector = task_vectors[dataset_name].vector.clone()
+        if not combined_task_vector:
+            combined_task_vector = {k: v.clone() for k, v in task_vectors[dataset_name].items()}
         else:
-            combined_task_vector += task_vectors[dataset_name].vector
+            for k in combined_task_vector:
+                if k in task_vectors[dataset_name]:
+                    combined_task_vector[k] += task_vectors[dataset_name][k]
     
     # Apply the combined task vector
     with torch.no_grad():
@@ -95,14 +95,9 @@ def evaluate_multitask_model(args, datasets, task_vectors, alpha, base_encoder):
             "normalized_acc": normalized_acc
         }
     
-    # Calculate average metrics
-    avg_test_acc = np.mean([v["test_acc"] for v in results.values()])
-    avg_normalized_acc = np.mean([v["normalized_acc"] for v in results.values()])
-    
-    results["average"] = {
-        "test_acc": avg_test_acc,
-        "normalized_acc": avg_normalized_acc
-    }
+    # Calculate average normalized accuracy
+    avg_normalized_acc = sum(d["normalized_acc"] for d in results.values()) / len(results)
+    results["average"] = {"normalized_acc": avg_normalized_acc}
     
     return results
 
@@ -118,20 +113,29 @@ def main():
     task_vectors = {}
     for dataset_name in tqdm(datasets):
         finetuned_path = f"{args.save}/{dataset_name}_finetuned.pt"
-        task_vectors[dataset_name] = NonLinearTaskVector(
-            pretrained_path, finetuned_path
-        )
+        pretrained_state = torch.load(pretrained_path, map_location='cpu')
+        finetuned_state = torch.load(finetuned_path, map_location='cpu')
+        
+        task_vector = {}
+        for key in pretrained_state.keys():
+            if key in finetuned_state:
+                task_vector[key] = finetuned_state[key] - pretrained_state[key]
+        task_vectors[dataset_name] = task_vector
     
-    # Try different alpha values
-    alpha_values = np.arange(0.0, 1.05, 0.05)
-    best_results = None
-    best_alpha = None
-    best_avg_normalized_acc = 0
-    
+    # Find optimal alpha
     print("\nFinding optimal alpha...")
-    for alpha in tqdm(alpha_values):
+    alphas = [i * 0.1 for i in range(21)]  # 0.0 to 2.0
+    best_alpha = 0
+    best_avg_normalized_acc = 0
+    best_results = None
+    
+    for alpha in tqdm(alphas):
         results = evaluate_multitask_model(
-            args, datasets, task_vectors, alpha, pretrained_path
+            args=args,
+            datasets=datasets,
+            task_vectors=task_vectors,
+            alpha=alpha,
+            base_encoder=pretrained_path
         )
         
         avg_normalized_acc = results["average"]["normalized_acc"]
@@ -148,13 +152,11 @@ def main():
         "results": best_results
     }
     
-    save_path = f"{args.save}/task_addition_results.json"
-    with open(save_path, 'w') as f:
-        json.dump(final_results, f, indent=4)
+    with open(f"{args.save}/task_addition_results.json", "w") as f:
+        json.dump(final_results, f, indent=2)
     
     print(f"\nBest alpha: {best_alpha:.2f}")
     print(f"Best average normalized accuracy: {best_avg_normalized_acc:.4f}")
-    print(f"Results saved to {save_path}")
 
 if __name__ == "__main__":
     main()
