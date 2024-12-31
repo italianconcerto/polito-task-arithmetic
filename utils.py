@@ -8,6 +8,8 @@ from datasets.common import get_dataloader, maybe_dictionarize
 from datasets.registry import get_dataset
 from collections import OrderedDict
 
+from modeling import ImageEncoder
+
 
 def torch_save(model, save_path):
     if os.path.dirname(save_path) != "":
