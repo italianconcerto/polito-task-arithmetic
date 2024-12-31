@@ -11,11 +11,11 @@ def torch_save(model, save_path):
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
     torch.save(model, save_path)
 
-def torch_load(save_path, device='cpu'):
+def torch_load(save_path, device='cpu', encoder_args=None):
     state_dict = torch.load(save_path, map_location=device)
     if isinstance(state_dict, OrderedDict):
         from modeling import ImageEncoder
-        model = ImageEncoder({'model': 'ViT-B-32', 'device': device})
+        model = ImageEncoder(encoder_args or {'model': 'ViT-B-32', 'device': device})
         model.load_state_dict(state_dict)
         return model
     return state_dict.to(device)

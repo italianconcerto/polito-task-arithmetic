@@ -8,7 +8,7 @@ from datasets.registry import get_dataset
 from modeling import ImageClassifier, ImageEncoder
 from heads import get_classification_head
 from task_vectors import NonLinearTaskVector
-from utils import torch_load
+from utils import torch_load, DotDict
 
 def evaluate(model, data_loader, args):
     model.eval()
@@ -31,7 +31,13 @@ def evaluate_multitask_model(args, datasets, task_vectors, alpha, base_encoder):
     results = {}
     
     # Load the base encoder
-    encoder = torch_load(base_encoder, device=args.device)
+    encoder_args = DotDict({
+        'model': 'ViT-B-32',
+        'device': args.device,
+        'openclip_cachedir': args.openclip_cachedir,
+        'cache_dir': args.cache_dir
+    })
+    encoder = torch_load(base_encoder, device=args.device, encoder_args=encoder_args)
     
     # Combine task vectors
     combined_task_vector = None
