@@ -3,6 +3,28 @@
 # Exit on any error
 set -e
 
+# Parse command line arguments
+skip_init=false
+skip_finetune=false
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --skip-init)
+            skip_init=true
+            shift
+            ;;
+        --skip-finetune)
+            skip_finetune=true
+            shift
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Usage: $0 [--skip-init] [--skip-finetune]"
+            exit 1
+            ;;
+    esac
+done
+
 # Create necessary directories
 mkdir -p results
 mkdir -p data
@@ -30,18 +52,22 @@ run_cmd() {
 # Start logging
 log "=== Starting experiment at $(date) ==="
 
-# 0. Initialize pre-trained model
-log "\n=== Initializing pre-trained model ==="
-run_cmd "python init_pretrained.py --save ./results"
+# 0. Initialize pre-trained model (if not skipped)
+if [ "$skip_init" = false ]; then
+    log "\n=== Initializing pre-trained model ==="
+    run_cmd "python init_pretrained.py --save ./results"
+fi
 
-# 1. Fine-tune on all datasets
-log "\n=== Fine-tuning on all datasets ==="
-run_cmd "python finetune.py \
-    --data-location ./data \
-    --save ./results \
-    --batch-size 32 \
-    --lr 1e-4 \
-    --wd 0.0"
+# 1. Fine-tune on all datasets (if not skipped)
+if [ "$skip_finetune" = false ]; then
+    log "\n=== Fine-tuning on all datasets ==="
+    run_cmd "python finetune.py \
+        --data-location ./data \
+        --save ./results \
+        --batch-size 32 \
+        --lr 1e-4 \
+        --wd 0.0"
+fi
 
 # 2. Evaluate single-task performance
 log "\n=== Evaluating single-task performance ==="
