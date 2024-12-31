@@ -1,25 +1,20 @@
 import os
 import pickle
-
-import numpy as np
 import torch
 from tqdm.auto import tqdm
 from datasets.common import get_dataloader, maybe_dictionarize
 from datasets.registry import get_dataset
 from collections import OrderedDict
 
-from modeling import ImageEncoder
-
-
 def torch_save(model, save_path):
     if os.path.dirname(save_path) != "":
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
     torch.save(model, save_path)
 
-
 def torch_load(save_path, device='cpu'):
     state_dict = torch.load(save_path, map_location=device)
     if isinstance(state_dict, OrderedDict):
+        from modeling import ImageEncoder
         model = ImageEncoder({'model': 'ViT-B-32', 'device': device})
         model.load_state_dict(state_dict)
         return model
