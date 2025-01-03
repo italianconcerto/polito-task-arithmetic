@@ -6,3 +6,6 @@ results/*
 .DS_Store
 **.venv/*
 .venv/*
+**/.ipynb_checkpoints/*
+logs/*
+nohup_*.out

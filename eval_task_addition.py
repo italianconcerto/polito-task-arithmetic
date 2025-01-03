@@ -135,7 +135,7 @@ def main():
     
     # Find optimal alpha
     print("\nFinding optimal alpha...")
-    alphas = [i * 0.1 for i in range(21)]  # 0.0 to 2.0
+    alphas = [i * 0.05 for i in range(20 + 1)]  # 0.0 to 1.0 in 0.05 steps (inclusive)
     best_alpha = 0
     best_avg_normalized_acc = 0
     best_results = None
