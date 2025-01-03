@@ -2,9 +2,9 @@ import json
 import torch
 from tqdm import tqdm
 from args import parse_arguments
-from datasets.common import get_dataloader
+from datasets.common import get_dataloader, maybe_dictionarize
 from datasets.registry import get_dataset
-from modeling import ImageClassifier
+from modeling import ImageClassifier, ImageEncoder
 from heads import get_classification_head
 from utils import torch_load, DotDict
 
@@ -15,8 +15,8 @@ def evaluate(model, loader, args):
     
     with torch.no_grad():
         for batch in loader:
-            x = batch['images'].to(args.device)
-            y = batch['labels'].to(args.device)
+            batch = maybe_dictionarize(batch)
+            x, y = batch['images'].to(args.device), batch['labels'].to(args.device)
             
             outputs = model(x)
             _, predicted = outputs.max(1)
@@ -28,14 +28,24 @@ def evaluate(model, loader, args):
 def evaluate_multitask_model(args, datasets, task_vectors, alpha, base_encoder):
     results = {}
     
-    # Load the base encoder
+    # Load the base encoder state dict
+    encoder_state = torch.load(base_encoder, map_location='cpu', weights_only=True)
+    if not isinstance(encoder_state, dict):
+        encoder_state = encoder_state.state_dict()
+    
+    # Initialize a new encoder
     encoder_args = DotDict({
         'model': 'ViT-B-32',
         'device': args.device,
         'openclip_cachedir': getattr(args, 'openclip_cachedir', None),
         'cache_dir': getattr(args, 'cache_dir', None)
     })
-    encoder = torch_load(base_encoder, device=args.device, encoder_args=encoder_args)
+    encoder = ImageEncoder(encoder_args)
+    
+    # Load the state dict
+    if not isinstance(encoder_state, dict):
+        encoder_state = encoder_state.state_dict()
+    encoder.load_state_dict(encoder_state)
     
     # Combine task vectors
     combined_task_vector = {}

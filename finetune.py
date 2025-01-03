@@ -92,9 +92,9 @@ def main():
             
             if train_loss < best_loss:
                 best_loss = train_loss
-                # Save the model
+                # Save the model's state dict
                 save_path = f"{args.save}/{dataset_name}_finetuned.pt"
-                torch_save(model.image_encoder, save_path)
+                torch.save(model.image_encoder.state_dict(), save_path)
                 print(f"Saved checkpoint to {save_path}")
 
 if __name__ == "__main__":
