@@ -52,34 +52,33 @@ run_cmd() {
 # Start logging
 log "=== Starting experiment at $(date) ==="
 
+# Common arguments used across commands
+COMMON_ARGS="--data-location ./data \
+    --save ./results \
+    --model ViT-B-32 \
+    --batch-size 32 \
+    --lr 1e-4 \
+    --wd 0.0"
+
 # 0. Initialize pre-trained model (if not skipped)
 if [ "$skip_init" = false ]; then
     log "\n=== Initializing pre-trained model ==="
-    run_cmd "python init_pretrained.py --save ./results"
+    run_cmd "python init_pretrained.py $COMMON_ARGS"
 fi
 
 # 1. Fine-tune on all datasets (if not skipped)
 if [ "$skip_finetune" = false ]; then
     log "\n=== Fine-tuning on all datasets ==="
-    run_cmd "python finetune.py \
-        --data-location ./data \
-        --save ./results \
-        --batch-size 32 \
-        --lr 1e-4 \
-        --wd 0.0"
+    run_cmd "python finetune.py $COMMON_ARGS"
 fi
 
 # 2. Evaluate single-task performance
 log "\n=== Evaluating single-task performance ==="
-run_cmd "python eval_single_task.py \
-    --data-location ./data \
-    --save ./results"
+run_cmd "python eval_single_task.py $COMMON_ARGS"
 
 # 3. Perform task addition
 log "\n=== Performing task addition ==="
-run_cmd "python eval_task_addition.py \
-    --data-location ./data \
-    --save ./results"
+run_cmd "python eval_task_addition.py $COMMON_ARGS"
 
 # Clean up intermediate files to save space
 log "\n=== Cleaning up to save space ==="
