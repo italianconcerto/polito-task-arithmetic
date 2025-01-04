@@ -69,11 +69,30 @@ def evaluate_multitask_model(args, datasets, task_vectors, alpha, base_encoder):
         head = get_classification_head(args, f"{dataset_name}Val")
         model = ImageClassifier(encoder, head)
         model = model.to(args.device)
+
+        tmp_encoder_state = torch.load(base_encoder, map_location='cpu', weights_only=True)
+        if not isinstance(tmp_encoder_state, dict):
+            tmp_encoder_state = encoder_state.state_dict()
+
+        tmp_encoder = ImageEncoder(encoder_args)
+        if not isinstance(tmp_encoder_state, dict):
+            tmp_encoder_state = encoder_state.state_dict()
+        tmp_encoder.load_state_dict(tmp_encoder_state)
+
+        task_vector = task_vectors[dataset_name]
+        with torch.no_grad():
+            for name, param in tmp_encoder.named_parameters():
+                if name in task_vector:
+                    param.data += alpha * task_vector[name]
+
+        tmp_head = get_classification_head(args, f"{dataset_name}Val")
+        tmp_model = ImageClassifier(tmp_encoder, tmp_head)
+        tmp_model = tmp_model.to(args.device)
         
         # Get single-task accuracy for normalization
         single_task_results = json.load(open(f"{args.save}/single_task_results.json"))
         single_task_acc = single_task_results[dataset_name]["test_acc"]
-        
+
         # Evaluate on validation set
         val_dataset = get_dataset(
             f"{dataset_name}Val",
@@ -95,6 +114,7 @@ def evaluate_multitask_model(args, datasets, task_vectors, alpha, base_encoder):
         )
         test_loader = get_dataloader(test_dataset, is_train=False, args=args)
         test_acc = evaluate(model, test_loader, args)
+        single_task_acc = evaluate(tmp_model, test_loader, args)
         
         # Calculate normalized accuracy
         normalized_acc = test_acc / single_task_acc
