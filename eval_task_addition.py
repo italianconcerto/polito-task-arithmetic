@@ -34,41 +34,11 @@ def evaluate_multitask_model(args, datasets, task_vectors, alpha, pretrained_pat
     
     print(f"\nEvaluating alpha = {alpha:.2f}")
     
-    # First combine all task vectors using the built-in addition operator
-    combined_vector = None
-    for dataset_name in datasets:
-        if combined_vector is None:
-            combined_vector = task_vectors[dataset_name]
-        else:
-            combined_vector = combined_vector + task_vectors[dataset_name]
+    # Combine all task vectors at once using sum()
+    combined_vector = sum(task_vectors.values(), start=None)
     
-    # Create fresh encoder
-    encoder_args = DotDict({
-        'model': 'ViT-B-32',
-        'device': args.device,
-        'openclip_cachedir': getattr(args, 'openclip_cachedir', None),
-        'cache_dir': getattr(args, 'cache_dir', None)
-    })
-    merged_encoder = ImageEncoder(encoder_args)
-    
-    # Load pretrained state
-    pretrained_state = torch.load(pretrained_path, map_location=args.device, weights_only=True)
-    if not isinstance(pretrained_state, dict):
-        pretrained_state = pretrained_state.state_dict()
-    
-    # Apply task vector
-    new_state = {}
-    for key in pretrained_state:
-        if key in combined_vector.vector:
-            # Move both tensors to the same device before adding
-            pretrained_tensor = pretrained_state[key].to(args.device)
-            task_vector_tensor = combined_vector.vector[key].to(args.device)
-            new_state[key] = pretrained_tensor + alpha * task_vector_tensor
-        else:
-            new_state[key] = pretrained_state[key].to(args.device)
-    
-    # Load modified state
-    merged_encoder.load_state_dict(new_state)
+    # Apply the combined vector with alpha scaling to get merged encoder
+    merged_encoder = combined_vector.apply_to(pretrained_path, scaling_coef=alpha)
     merged_encoder = merged_encoder.to(args.device)
     merged_encoder.eval()  # Ensure evaluation mode
     
@@ -98,7 +68,7 @@ def evaluate_multitask_model(args, datasets, task_vectors, alpha, pretrained_pat
             preprocess=model.val_preprocess,
             location=args.data_location,
             batch_size=args.batch_size,
-            num_workers=4    # Increased workers for faster data loading
+            num_workers=2
         )
         val_loader = get_dataloader(val_dataset, is_train=False, args=args)
         val_acc = evaluate(model, val_loader, args, desc=f"Validating {dataset_name}")
@@ -109,7 +79,7 @@ def evaluate_multitask_model(args, datasets, task_vectors, alpha, pretrained_pat
             preprocess=model.val_preprocess,
             location=args.data_location,
             batch_size=args.batch_size,
-            num_workers=4    # Increased workers for faster data loading
+            num_workers=2
         )
         test_loader = get_dataloader(test_dataset, is_train=False, args=args)
         test_acc = evaluate(model, test_loader, args, desc=f"Testing {dataset_name}")
