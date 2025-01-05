@@ -52,20 +52,20 @@ def evaluate_multitask_model(args, datasets, task_vectors, alpha, pretrained_pat
     merged_encoder = ImageEncoder(encoder_args)
     
     # Load pretrained state
-    pretrained_state = torch.load(pretrained_path, map_location=args.device)
+    pretrained_state = torch.load(pretrained_path, map_location=args.device, weights_only=True)
     if not isinstance(pretrained_state, dict):
         pretrained_state = pretrained_state.state_dict()
     
     # Apply task vector
     new_state = {}
     for key in pretrained_state:
-        pretrained_state[key].to(args.device)
         if key in combined_vector.vector:
-            combined_vector.vector[key].to(args.device)
-            new_state[key] = pretrained_state[key] + alpha * combined_vector.vector[key]
+            # Move both tensors to the same device before adding
+            pretrained_tensor = pretrained_state[key].to(args.device)
+            task_vector_tensor = combined_vector.vector[key].to(args.device)
+            new_state[key] = pretrained_tensor + alpha * task_vector_tensor
         else:
-            
-            new_state[key] = pretrained_state[key]
+            new_state[key] = pretrained_state[key].to(args.device)
     
     # Load modified state
     merged_encoder.load_state_dict(new_state)
