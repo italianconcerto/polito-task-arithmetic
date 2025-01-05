@@ -59,9 +59,12 @@ def evaluate_multitask_model(args, datasets, task_vectors, alpha, pretrained_pat
     # Apply task vector
     new_state = {}
     for key in pretrained_state:
+        pretrained_state[key].to(args.device)
         if key in combined_vector.vector:
+            combined_vector.vector[key].to(args.device)
             new_state[key] = pretrained_state[key] + alpha * combined_vector.vector[key]
         else:
+            
             new_state[key] = pretrained_state[key]
     
     # Load modified state
