@@ -6,15 +6,16 @@ from datasets.common import get_dataloader, maybe_dictionarize
 from datasets.registry import get_dataset
 from modeling import ImageClassifier, ImageEncoder
 from heads import get_classification_head
-from utils import torch_load, DotDict
+from task_vectors import NonLinearTaskVector
+from utils import DotDict
 
-def evaluate(model, loader, args):
+def evaluate(model, loader, args, desc=None):
     model.eval()
     correct = 0
     total = 0
     
     with torch.no_grad():
-        for batch in loader:
+        for batch in tqdm(loader, desc=desc, leave=False):
             batch = maybe_dictionarize(batch)
             x, y = batch['images'].to(args.device), batch['labels'].to(args.device)
             
@@ -23,55 +24,69 @@ def evaluate(model, loader, args):
             total += y.size(0)
             correct += predicted.eq(y).sum().item()
     
-    return 100. * correct / total
+    acc = 100. * correct / total
+    if desc:
+        print(f"{desc}: {acc:.2f}%")
+    return acc
 
-def evaluate_multitask_model(args, datasets, task_vectors, alpha, base_encoder):
+def evaluate_multitask_model(args, datasets, task_vectors, alpha, pretrained_path):
     results = {}
     
-    # Load the base encoder state dict
-    encoder_state = torch.load(base_encoder, map_location='cpu', weights_only=True)
-    if not isinstance(encoder_state, dict):
-        encoder_state = encoder_state.state_dict()
+    print(f"\nEvaluating alpha = {alpha:.2f}")
     
-    # Initialize a new encoder
+    # First combine all task vectors using the built-in addition operator
+    combined_vector = None
+    for dataset_name in datasets:
+        if combined_vector is None:
+            combined_vector = task_vectors[dataset_name]
+        else:
+            combined_vector = combined_vector + task_vectors[dataset_name]
+    
+    # Create fresh encoder
     encoder_args = DotDict({
         'model': 'ViT-B-32',
         'device': args.device,
         'openclip_cachedir': getattr(args, 'openclip_cachedir', None),
         'cache_dir': getattr(args, 'cache_dir', None)
     })
-    encoder = ImageEncoder(encoder_args)
+    merged_encoder = ImageEncoder(encoder_args)
     
-    # Load the state dict
-    if not isinstance(encoder_state, dict):
-        encoder_state = encoder_state.state_dict()
-    encoder.load_state_dict(encoder_state)
+    # Load pretrained state
+    pretrained_state = torch.load(pretrained_path, map_location=args.device)
+    if not isinstance(pretrained_state, dict):
+        pretrained_state = pretrained_state.state_dict()
     
-    # Combine task vectors
-    combined_task_vector = {}
-    for dataset_name in datasets:
-        if not combined_task_vector:
-            combined_task_vector = {k: v.clone() for k, v in task_vectors[dataset_name].items()}
+    # Apply task vector
+    new_state = {}
+    for key in pretrained_state:
+        if key in combined_vector.vector:
+            new_state[key] = pretrained_state[key] + alpha * combined_vector.vector[key]
         else:
-            for k in combined_task_vector:
-                if k in task_vectors[dataset_name]:
-                    combined_task_vector[k] += task_vectors[dataset_name][k]
+            new_state[key] = pretrained_state[key]
     
-    # Apply the combined task vector
-    with torch.no_grad():
-        for name, param in encoder.named_parameters():
-            if name in combined_task_vector:
-                param.data += alpha * combined_task_vector[name]
+    # Load modified state
+    merged_encoder.load_state_dict(new_state)
+    merged_encoder = merged_encoder.to(args.device)
+    merged_encoder.eval()  # Ensure evaluation mode
+    
+    # Load single task accuracies for normalization
+    with open(f"{args.save}/single_task_results.json", 'r') as f:
+        single_task_results = json.load(f)
     
     # Evaluate on each dataset
+    absolute_accs = []
+    normalized_accs = []
+    
     for dataset_name in datasets:
-        # Create model with the modified encoder
+        print(f"\nEvaluating {dataset_name}...")
+        # Create model with the merged encoder and dataset-specific head
         head = get_classification_head(args, f"{dataset_name}Val")
-        model = ImageClassifier(encoder, head)
+        head = head.to(args.device)
+        model = ImageClassifier(merged_encoder, head)
         model = model.to(args.device)
+        model.eval()  # Ensure evaluation mode
         
         # Get single-task accuracy for normalization
-        single_task_results = json.load(open(f"{args.save}/single_task_results.json"))
         single_task_acc = single_task_results[dataset_name]["test_acc"]
         
         # Evaluate on validation set
@@ -80,10 +95,10 @@ def evaluate_multitask_model(args, datasets, task_vectors, alpha, base_encoder):
             preprocess=model.val_preprocess,
             location=args.data_location,
             batch_size=args.batch_size,
-            num_workers=2
+            num_workers=4    # Increased workers for faster data loading
         )
         val_loader = get_dataloader(val_dataset, is_train=False, args=args)
-        val_acc = evaluate(model, val_loader, args)
+        val_acc = evaluate(model, val_loader, args, desc=f"Validating {dataset_name}")
         
         # Evaluate on test set
         test_dataset = get_dataset(
@@ -91,28 +106,54 @@ def evaluate_multitask_model(args, datasets, task_vectors, alpha, base_encoder):
             preprocess=model.val_preprocess,
             location=args.data_location,
             batch_size=args.batch_size,
-            num_workers=2
+            num_workers=4    # Increased workers for faster data loading
         )
         test_loader = get_dataloader(test_dataset, is_train=False, args=args)
-        test_acc = evaluate(model, test_loader, args)
+        test_acc = evaluate(model, test_loader, args, desc=f"Testing {dataset_name}")
         
-        # Calculate normalized accuracy
-        normalized_acc = test_acc / single_task_acc
+        # Store accuracies
+        absolute_accs.append(test_acc)
+        normalized_accs.append(test_acc / single_task_acc)
         
         results[dataset_name] = {
             "val_acc": val_acc,
             "test_acc": test_acc,
-            "normalized_acc": normalized_acc
+            "normalized_acc": test_acc / single_task_acc
         }
+        
+        # Print current results
+        print(f"{dataset_name} Results:")
+        print(f"  Val Acc: {val_acc:.2f}%")
+        print(f"  Test Acc: {test_acc:.2f}%")
+        print(f"  Normalized Acc: {(test_acc/single_task_acc):.4f}")
     
-    # Calculate average normalized accuracy
-    avg_normalized_acc = sum(d["normalized_acc"] for d in results.values()) / len(results)
-    results["average"] = {"normalized_acc": avg_normalized_acc}
+    # Calculate averages
+    avg_absolute_acc = sum(absolute_accs) / len(absolute_accs)
+    avg_normalized_acc = sum(normalized_accs) / len(normalized_accs)
+    
+    results["average"] = {
+        "absolute_acc": avg_absolute_acc,
+        "normalized_acc": avg_normalized_acc
+    }
+    
+    print(f"\nAverage Results for alpha = {alpha:.2f}:")
+    print(f"  Absolute Acc: {avg_absolute_acc:.2f}%")
+    print(f"  Normalized Acc: {avg_normalized_acc:.4f}")
     
     return results
 
 def main():
     args = parse_arguments()
+    
+    # Set device to CUDA if available, CPU as fallback
+    if torch.cuda.is_available():
+        args.device = torch.device('cuda')
+        torch.backends.cudnn.benchmark = True
+        print("Using CUDA device")
+    else:
+        args.device = torch.device('cpu')
+        print("Using CPU device")
+    
     datasets = ["DTD", "EuroSAT", "GTSRB", "MNIST", "RESISC45", "SVHN"]
     
     pretrained_path = f"{args.save}/pretrained.pt"
@@ -121,41 +162,34 @@ def main():
     task_vectors = {}
     for dataset_name in tqdm(datasets):
         finetuned_path = f"{args.save}/{dataset_name}_finetuned.pt"
-        pretrained_state = torch.load(pretrained_path, map_location='cpu')
-        finetuned_state = torch.load(finetuned_path, map_location='cpu')
-        
-        task_vector = {}
-        for key in pretrained_state.keys():
-            if key not in finetuned_state:
-                continue
-            if pretrained_state[key].shape != finetuned_state[key].shape:
-                continue
-            task_vector[key] = finetuned_state[key] - pretrained_state[key]
-        task_vectors[dataset_name] = task_vector
+        task_vectors[dataset_name] = NonLinearTaskVector(
+            pretrained_checkpoint=pretrained_path,
+            finetuned_checkpoint=finetuned_path
+        )
     
     # Find optimal alpha
     print("\nFinding optimal alpha...")
-    alphas = [i * 0.05 for i in range(20 + 1)]  # 0.0 to 1.0 in 0.05 steps (inclusive)
+    alphas = [i * 0.05 for i in range(21)]  # 0.0 to 1.0 in 0.05 steps
     best_alpha = 0
     best_avg_normalized_acc = 0
     best_results = None
     
-    for alpha in tqdm(alphas):
+    for alpha in tqdm(alphas, desc="Testing alphas"):
         results = evaluate_multitask_model(
             args=args,
             datasets=datasets,
             task_vectors=task_vectors,
             alpha=alpha,
-            base_encoder=pretrained_path
+            pretrained_path=pretrained_path
         )
         
         avg_normalized_acc = results["average"]["normalized_acc"]
-        print(f"\nAlpha: {alpha:.2f}, Avg Normalized Acc: {avg_normalized_acc:.4f}")
         
         if avg_normalized_acc > best_avg_normalized_acc:
             best_avg_normalized_acc = avg_normalized_acc
             best_alpha = alpha
             best_results = results
+            print(f"\nNew best alpha: {best_alpha:.2f} with normalized acc: {best_avg_normalized_acc:.4f}")
     
     # Save results
     final_results = {
@@ -166,8 +200,10 @@ def main():
     with open(f"{args.save}/task_addition_results.json", "w") as f:
         json.dump(final_results, f, indent=2)
     
-    print(f"\nBest alpha: {best_alpha:.2f}")
+    print("\nFinal Results:")
+    print(f"Best alpha: {best_alpha:.2f}")
     print(f"Best average normalized accuracy: {best_avg_normalized_acc:.4f}")
+    print(f"Best average absolute accuracy: {best_results['average']['absolute_acc']:.4f}")
 
 if __name__ == "__main__":
     main()
