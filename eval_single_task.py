@@ -55,6 +55,7 @@ def evaluate_single_task(args, dataset_name):
         batch_size=args.batch_size,
         num_workers=2
     )
+    print(f"Single task evaluation, length of val_dataset: {len(val_dataset.test_dataset)}")
     val_loader = get_dataloader(val_dataset, is_train=False, args=args)
     val_acc = evaluate(model, val_loader, args)
     results['val_acc'] = val_acc
@@ -68,6 +69,7 @@ def evaluate_single_task(args, dataset_name):
         num_workers=2
     )
     test_loader = get_dataloader(test_dataset, is_train=False, args=args)
+    print(f"Single task evaluation, length of test_dataset: {len(test_dataset.test_dataset)}")
     test_acc = evaluate(model, test_loader, args)
     results['test_acc'] = test_acc
     
@@ -84,7 +86,6 @@ def evaluate_single_task(args, dataset_name):
 
 def main():
     args = parse_arguments()
-    
     datasets = ["DTD", "EuroSAT", "GTSRB", "MNIST", "RESISC45", "SVHN"]
     all_results = {}
     

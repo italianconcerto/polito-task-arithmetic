@@ -83,6 +83,7 @@ def evaluate_multitask_model(args, datasets, task_vectors, alpha, base_encoder):
             num_workers=2
         )
         val_loader = get_dataloader(val_dataset, is_train=False, args=args)
+        print(f"Multi-task evaluation, length of val_dataset: {len(val_dataset.test_dataset)}")
         val_acc = evaluate(model, val_loader, args)
         
         # Evaluate on test set
@@ -94,6 +95,7 @@ def evaluate_multitask_model(args, datasets, task_vectors, alpha, base_encoder):
             num_workers=2
         )
         test_loader = get_dataloader(test_dataset, is_train=False, args=args)
+        print(f"Multi-task evaluation, length of test_dataset: {len(test_dataset.test_dataset)}")
         test_acc = evaluate(model, test_loader, args)
         
         # Calculate normalized accuracy
@@ -113,6 +115,7 @@ def evaluate_multitask_model(args, datasets, task_vectors, alpha, base_encoder):
 
 def main():
     args = parse_arguments()
+    breakpoint()
     datasets = ["DTD", "EuroSAT", "GTSRB", "MNIST", "RESISC45", "SVHN"]
     
     pretrained_path = f"{args.save}/pretrained.pt"
@@ -127,8 +130,10 @@ def main():
         task_vector = {}
         for key in pretrained_state.keys():
             if key not in finetuned_state:
+                raise ValueError(f"Key {key} not found in finetuned state")
                 continue
             if pretrained_state[key].shape != finetuned_state[key].shape:
+                raise ValueError(f"Shape mismatch for key {key}: {pretrained_state[key].shape} != {finetuned_state[key].shape}")
                 continue
             task_vector[key] = finetuned_state[key] - pretrained_state[key]
         task_vectors[dataset_name] = task_vector

@@ -71,7 +71,7 @@ def train_diag_fim_logtr(
             data = next(data_loader)
         data = maybe_dictionarize(data)
         x, y = data['images'], data['labels']
-        x, y = x.cuda(), y.cuda()
+        x, y = x.to(args.device), y.to(args.device)
 
         logits = model(x)
         outdx = torch.distributions.Categorical(logits=logits).sample().unsqueeze(1).detach()
