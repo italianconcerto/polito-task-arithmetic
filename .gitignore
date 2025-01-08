@@ -9,3 +9,4 @@ results/*
 **/.ipynb_checkpoints/*
 logs/*
 nohup_*.out
+comparison.csv
