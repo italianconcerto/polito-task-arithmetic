@@ -80,7 +80,6 @@ def main():
         train_loader = get_dataloader(dataset, is_train=True, args=args)
         
         # Training loop
-        best_loss = float('inf')
         for epoch in range(epochs_mapping[dataset_name]):
             print(f"\nEpoch {epoch + 1}/{epochs_mapping[dataset_name]}")
             
@@ -90,12 +89,11 @@ def main():
             
             print(f"Training Loss: {train_loss:.4f}, Accuracy: {train_acc:.2f}%")
             
-            if train_loss < best_loss:
-                best_loss = train_loss
-                # Save the model's state dict
-                save_path = f"{args.save}/{dataset_name}_finetuned.pt"
-                torch.save(model.image_encoder.state_dict(), save_path)
-                print(f"Saved checkpoint to {save_path}")
+
+        # Save the model's state dict
+        save_path = f"{args.save}/{dataset_name}_finetuned.pt"
+        torch.save(model.image_encoder.state_dict(), save_path)
+        print(f"Saved checkpoint to {save_path}")
 
 if __name__ == "__main__":
     main()
