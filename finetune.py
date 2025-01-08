@@ -91,7 +91,7 @@ def main():
         
         # Save the final model's state dict
         save_path = f"{args.save}/{dataset_name}_finetuned.pt"
-        torch.save(model.image_encoder.state_dict(), save_path)
+        torch_save(model.image_encoder, save_path)
         print(f"Saved final checkpoint to {save_path}")
 
 if __name__ == "__main__":
