@@ -89,10 +89,10 @@ def main():
             
             print(f"Training Loss: {train_loss:.4f}, Accuracy: {train_acc:.2f}%")
         
-        # Save the final model's state dict
+        # Save the full encoder model
         save_path = f"{args.save}/{dataset_name}_finetuned.pt"
-        torch_save(model.image_encoder, save_path)
-        print(f"Saved final checkpoint to {save_path}")
+        torch.save(model.image_encoder, save_path)  # Save full encoder model
+        print(f"Saved model to {save_path}")
 
 if __name__ == "__main__":
     main()

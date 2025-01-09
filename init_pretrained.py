@@ -11,8 +11,8 @@ def main():
     
     model = ImageEncoder(args)
     save_path = f"{args.save}/pretrained.pt"
-    torch.save(model.state_dict(), save_path)
-    print(f"Saved pre-trained model state dict to {save_path}")
+    torch.save(model, save_path)
+    print(f"Saved pre-trained model to {save_path}")
 
 if __name__ == "__main__":
     main()
