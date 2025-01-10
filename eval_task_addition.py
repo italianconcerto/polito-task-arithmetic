@@ -36,13 +36,12 @@ def evaluate_multitask_model(args, datasets, task_vectors, alpha, pretrained_pat
     
     # Combine all task vectors at once using sum()
     combined_vector = sum(task_vectors.values(), start=None)
-    
-    # Load pretrained model first
-    pretrained_model = torch.load(pretrained_path, map_location=args.device)
-    
+        
     # Apply the combined vector to get merged encoder
+    pretrained_model = open(pretrained_path, "rb")
     merged_encoder = combined_vector.apply_to(pretrained_model, scaling_coef=alpha)
     merged_encoder = merged_encoder.to(args.device)
+    pretrained_model.close()
     merged_encoder.eval()
     
     # Load single task accuracies for normalization
