@@ -52,8 +52,7 @@ def train_one_epoch(
 
 def finetune_model(
     args: Namespace,
-    dataset_name: Optional[str] = None,
-    custom_epochs: Optional[int] = None,
+    # dataset_name: Optional[str] = None,
     save: bool = False
 ) -> Dict[str, Dict]:
     default_epochs_mapping: Dict[str, int] = {
@@ -64,8 +63,8 @@ def finetune_model(
         "RESISC45": 15,
         "SVHN": 4
     }
-    
-    datasets_to_process: List[str] = [dataset_name] if dataset_name else list(default_epochs_mapping.keys())
+    dataset_name = args.train_dataset
+    datasets_to_process: List[str] = dataset_name if dataset_name else list(default_epochs_mapping.keys())
     
     results: Dict[str, Dict] = {}
     
@@ -94,7 +93,7 @@ def finetune_model(
         )
         train_loader: torch.utils.data.DataLoader = get_dataloader(dataset, is_train=True, args=args)
         
-        num_epochs: int = custom_epochs if custom_epochs else default_epochs_mapping[current_dataset]
+        num_epochs: int = args.epochs if args.epochs else default_epochs_mapping[current_dataset]
         
         epoch_results: List[Dict[str, Union[int, float]]] = []
         
@@ -226,7 +225,11 @@ def main() -> None:
     single_task_results = {}
     
     # List of all datasets to process
-    datasets = ["DTD", "EuroSAT", "GTSRB", "MNIST", "RESISC45", "SVHN"]
+    
+    if not args.train_dataset:
+        datasets = ["DTD", "EuroSAT", "GTSRB", "MNIST", "RESISC45", "SVHN"]
+    else:
+        datasets = args.train_dataset
     
     for dataset_name in datasets:
         print(f"\nProcessing {dataset_name}")
@@ -234,7 +237,7 @@ def main() -> None:
         # Fine-tune the model
         results = finetune_model(
             args=args,
-            dataset_name=dataset_name,
+            # dataset_name=dataset_name,
             save=True  # This will save best_accuracy, best_fim, and final models
         )
         
