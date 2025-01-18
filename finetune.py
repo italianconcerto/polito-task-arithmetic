@@ -226,7 +226,6 @@ def main() -> None:
     single_task_results = {}
     
     # List of all datasets to process
-    
     if not args.train_dataset:
         datasets = ["DTD", "EuroSAT", "GTSRB", "MNIST", "RESISC45", "SVHN"]
     else:
@@ -250,14 +249,14 @@ def main() -> None:
         }
         
         # Save the best model as the finetuned model for task vectors
-        best_model = dataset_results["best_metrics"]["accuracy"]["model"]
-        finetuned_path = os.path.join(args.save, f"{dataset_name}_finetuned.pt")
-        torch.save(best_model, finetuned_path)
+        # best_model = dataset_results["best_metrics"]["accuracy"]["model"]
+        # finetuned_path = os.path.join(args.save, f"{dataset_name}_finetuned.pt")
+        # torch.save(best_model, finetuned_path)
     
     # Save single task results for normalization
     single_task_path = os.path.join(args.save, "single_task_results.json")
-    with open(single_task_path, 'w') as f:
-        json.dump(single_task_results, f, indent=4)
+    # with open(single_task_path, 'w') as f:
+    #     json.dump(single_task_results, f, indent=4)
     
     print("\nSaved all models and results:")
     print(f"1. Pretrained model: {os.path.join(args.save, 'pretrained.pt')}")

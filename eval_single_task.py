@@ -63,7 +63,9 @@ def evaluate(
 def evaluate_models(args: Namespace, finetuning_results: Dict[str, Dict]) -> Dict[str, Dict]:
     evaluation_results: Dict[str, Dict] = {}
     
-    for dataset_name, dataset_results in finetuning_results.items():
+    # for dataset_name, dataset_results in finetuning_results.items():
+    for dataset_name in args.eval_datasets:
+        dataset_results = finetuning_results[dataset_name]
         print(f"\nEvaluating models for {dataset_name}")
         dataset_eval_results = {}
         
@@ -103,7 +105,7 @@ def evaluate_models(args: Namespace, finetuning_results: Dict[str, Dict]) -> Dic
                     num_workers=2
                 )
                 val_loader = get_dataloader(val_dataset, is_train=False, args=args)
-                val_results = evaluate(model, val_loader, args, "validation")
+                val_results = evaluate(model, val_loader, args, "Val set (validation)")
                 
                 # Evaluate on test set
                 test_dataset = get_dataset(
@@ -153,15 +155,15 @@ def evaluate_models(args: Namespace, finetuning_results: Dict[str, Dict]) -> Dic
                         'accuracy': float(model_results['validation']['accuracy']),
                         'loss': float(model_results['validation']['loss']),
                         'num_samples': model_results['validation']['num_samples'],
-                        'predictions': model_results['validation']['predictions'],
-                        'labels': model_results['validation']['labels']
+                        # 'predictions': model_results['validation']['predictions'],
+                        # 'labels': model_results['validation']['labels']
                     },
                     'test': {
                         'accuracy': float(model_results['test']['accuracy']),
                         'loss': float(model_results['test']['loss']),
                         'num_samples': model_results['test']['num_samples'],
-                        'predictions': model_results['test']['predictions'],
-                        'labels': model_results['test']['labels']
+                        # 'predictions': model_results['test']['predictions'],
+                        # 'labels': model_results['test']['labels']
                     },
                     'fim_logtr': float(model_results['fim_logtr'])
                 }

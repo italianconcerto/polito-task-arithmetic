@@ -91,7 +91,7 @@ def run_experiment(args: Namespace) -> Dict:
     
     # Step 3: Task Addition
     print("\n=== Starting Task Addition Phase ===")
-    datasets = ["DTD", "EuroSAT", "GTSRB", "MNIST", "RESISC45", "SVHN"]
+    datasets = args.eval_datasets if args.eval_datasets else ["DTD", "EuroSAT", "GTSRB", "MNIST", "RESISC45", "SVHN"]
     pretrained_path = os.path.join(args.save, "pretrained.pt")
     
     print("Building task vectors...")
@@ -114,11 +114,9 @@ def run_experiment(args: Namespace) -> Dict:
     for alpha in alphas:
         results = evaluate_multitask_model(
             args=args,
-            datasets=datasets,
             task_vectors=task_vectors,
             alpha=alpha,
-            pretrained_path=pretrained_path,
-            save=True
+            finetuning_results=finetuning_results
         )
         alpha_results[alpha] = results
         avg_normalized_acc = results['average_metrics']['normalized_acc']

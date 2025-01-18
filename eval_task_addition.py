@@ -59,19 +59,18 @@ def evaluate(
 
 def evaluate_multitask_model(
     args: Namespace,
-    datasets: List[str],
     task_vectors: Dict[str, NonLinearTaskVector],
     alpha: float,
-    pretrained_path: str,
-    save: bool = False
 ) -> Dict[str, Dict]:
     results: Dict[str, Dict] = {}
-    
+    datasets = args.eval_dataset
     print(f"\nEvaluating alpha = {alpha:.2f}")
     
     # Combine all task vectors at once using sum()
     combined_vector = sum(task_vectors.values(), start=None)
     
+    
+    pretrained_path: str = f"{args.save}/pretrained.pt"
     # Apply the combined vector to get merged encoder
     pretrained_model = torch.load(pretrained_path, map_location=args.device)
     merged_encoder = combined_vector.apply_to(pretrained_model, scaling_coef=alpha)
@@ -153,7 +152,7 @@ def evaluate_multitask_model(
     }
     
     # Save results if requested
-    if save and args.save:
+    if args.save:
         save_path = os.path.join(args.save, f"multitask_alpha{alpha:.2f}_results.json")
         
         # Convert to JSON-serializable format
