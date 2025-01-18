@@ -1,7 +1,8 @@
 apt update && apt install -y unzip;
 pip install gdown;
 
-gdown --folder https://drive.google.com/drive/folders/1BiK9sYyTslcxQQoS3vZGF02hRg6OQpR4;
+mkdir -p downloads;
+gdown --folder https://drive.google.com/drive/folders/1BiK9sYyTslcxQQoS3vZGF02hRg6OQpR4 --output downloads;
 
 # First create the data directory if it doesn't exist
 mkdir -p data
