@@ -146,7 +146,7 @@ def finetune_model(
         final_model = copy.deepcopy(model.image_encoder)
         
         # Save models if requested
-        if save and args.save:
+        if args.save:
             # Save best accuracy model
             acc_save_path = os.path.join(
                 args.save, 
@@ -219,7 +219,8 @@ def main() -> None:
     
     # Save pretrained model first
     encoder: ImageEncoder = ImageEncoder(args)
-    torch.save(encoder, os.path.join(args.save, "pretrained.pt"))
+    if args.save:
+        torch.save(encoder, os.path.join(args.save, "pretrained.pt"))
     
     # Dictionary to store single task results
     single_task_results = {}
@@ -237,8 +238,6 @@ def main() -> None:
         # Fine-tune the model
         results = finetune_model(
             args=args,
-            # dataset_name=dataset_name,
-            save=True  # This will save best_accuracy, best_fim, and final models
         )
         
         # Store test accuracies for normalization in task addition
