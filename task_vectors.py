@@ -1,7 +1,6 @@
 import abc
 
 import torch
-from collections import OrderedDict
 
 
 class _TaskVector(abc.ABC):
@@ -129,27 +128,9 @@ class _TaskVector(abc.ABC):
 class NonLinearTaskVector(_TaskVector):
     """A task vector for nonlinear models."""
 
-    def __init__(self, pretrained_checkpoint=None, finetuned_checkpoint=None, vector=None):
-        if vector is not None:
-            self.vector = vector
-            return
-
-        pretrained_state_dict = self._load_checkpoint(pretrained_checkpoint)
-        finetuned_state_dict = self._load_checkpoint(finetuned_checkpoint)
-
-        with torch.no_grad():
-            self.vector = {}
-            for key in pretrained_state_dict:
-                if key not in finetuned_state_dict:
-                    print(f"Warning: key {key} not found in finetuned checkpoint")
-                    continue
-                self.vector[key] = finetuned_state_dict[key] - pretrained_state_dict[key]
-
     def _load_checkpoint(self, checkpoint):
-        state_dict = torch.load(checkpoint, map_location="cpu")
-        if isinstance(state_dict, OrderedDict):
-            return state_dict
-        return state_dict.state_dict()
+        """Load a checkpoint into a model."""
+        return torch.load(checkpoint, map_location="cpu")
 
     def _cast_to_same_type(self, other):
         return linear_to_nonlinear(other, self.vector.keys())

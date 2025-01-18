@@ -6,6 +6,7 @@ set -e
 # Parse command line arguments
 skip_init=false
 skip_finetune=false
+only_task_addition=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -17,9 +18,13 @@ while [[ $# -gt 0 ]]; do
             skip_finetune=true
             shift
             ;;
+        --only-task-addition)
+            only_task_addition=true
+            shift
+            ;;
         *)
             echo "Unknown option: $1"
-            echo "Usage: $0 [--skip-init] [--skip-finetune]"
+            echo "Usage: $0 [--skip-init] [--skip-finetune] [--only-task-addition]"
             exit 1
             ;;
     esac
@@ -60,28 +65,35 @@ COMMON_ARGS="--data-location ./data \
     --lr 1e-4 \
     --wd 0.0"
 
-# 0. Initialize pre-trained model (if not skipped)
-if [ "$skip_init" = false ]; then
-    log "\n=== Initializing pre-trained model ==="
-    run_cmd "python init_pretrained.py $COMMON_ARGS"
+if [ "$only_task_addition" = true ]; then
+    # Run only task addition evaluation
+    log "\n=== Performing task addition ==="
+    run_cmd "python eval_task_addition.py $COMMON_ARGS"
+else
+    # Run full experiment pipeline
+    # 0. Initialize pre-trained model (if not skipped)
+    if [ "$skip_init" = false ]; then
+        log "\n=== Initializing pre-trained model ==="
+        run_cmd "python init_pretrained.py $COMMON_ARGS"
+    fi
+
+    # 1. Fine-tune on all datasets (if not skipped)
+    if [ "$skip_finetune" = false ]; then
+        log "\n=== Fine-tuning on all datasets ==="
+        run_cmd "python finetune.py $COMMON_ARGS"
+    fi
+
+    # 2. Evaluate single-task performance
+    log "\n=== Evaluating single-task performance ==="
+    run_cmd "python eval_single_task.py $COMMON_ARGS"
+
+    # 3. Perform task addition
+    log "\n=== Performing task addition ==="
+    run_cmd "python eval_task_addition.py $COMMON_ARGS"
+
+    # Clean up intermediate files to save space
+    log "\n=== Cleaning up to save space ==="
+    find ./results -name "*.pt" ! -name "pretrained.pt" ! -name "*_finetuned.pt" -delete
 fi
-
-# 1. Fine-tune on all datasets (if not skipped)
-if [ "$skip_finetune" = false ]; then
-    log "\n=== Fine-tuning on all datasets ==="
-    run_cmd "python finetune.py $COMMON_ARGS"
-fi
-
-# 2. Evaluate single-task performance
-log "\n=== Evaluating single-task performance ==="
-run_cmd "python eval_single_task.py $COMMON_ARGS"
-
-# 3. Perform task addition
-log "\n=== Performing task addition ==="
-run_cmd "python eval_task_addition.py $COMMON_ARGS"
-
-# Clean up intermediate files to save space
-log "\n=== Cleaning up to save space ==="
-find ./results -name "*.pt" ! -name "pretrained.pt" ! -name "*_finetuned.pt" -delete
 
 log "\n=== Experiment completed at $(date) ==="

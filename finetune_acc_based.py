@@ -80,6 +80,7 @@ def main():
         train_loader = get_dataloader(dataset, is_train=True, args=args)
         
         # Training loop
+        best_acc = 0
         for epoch in range(epochs_mapping[dataset_name]):
             print(f"\nEpoch {epoch + 1}/{epochs_mapping[dataset_name]}")
             
@@ -89,10 +90,12 @@ def main():
             
             print(f"Training Loss: {train_loss:.4f}, Accuracy: {train_acc:.2f}%")
         
-        # Save the full encoder model
-        save_path = f"{args.save}/{dataset_name}_finetuned.pt"
-        torch.save(model.image_encoder, save_path)  # Save full encoder model
-        print(f"Saved model to {save_path}")
+            # Save the full encoder model
+            if train_acc > best_acc:
+                best_acc = train_acc
+                save_path = f"{args.save}/{dataset_name}_finetuned.pt"
+                torch.save(model.image_encoder, save_path)  # Save full encoder model
+                print(f"Saved model to {save_path}")
 
 if __name__ == "__main__":
     main()

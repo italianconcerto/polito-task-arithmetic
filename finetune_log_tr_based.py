@@ -7,7 +7,7 @@ from datasets.common import get_dataloader, maybe_dictionarize
 from datasets.registry import get_dataset
 from modeling import ImageClassifier, ImageEncoder
 from heads import get_classification_head
-from utils import torch_save
+from utils import torch_save, train_diag_fim_logtr
 
 def train_one_epoch(model, train_loader, optimizer, criterion, args):
     model.train()
@@ -80,19 +80,23 @@ def main():
         train_loader = get_dataloader(dataset, is_train=True, args=args)
         
         # Training loop
+        best_logtr = 0
         for epoch in range(epochs_mapping[dataset_name]):
             print(f"\nEpoch {epoch + 1}/{epochs_mapping[dataset_name]}")
             
             train_loss, train_acc = train_one_epoch(
                 model, train_loader, optimizer, criterion, args
             )
+            fim_logtr = train_diag_fim_logtr(args, model, dataset_name)
             
             print(f"Training Loss: {train_loss:.4f}, Accuracy: {train_acc:.2f}%")
         
-        # Save the full encoder model
-        save_path = f"{args.save}/{dataset_name}_finetuned.pt"
-        torch.save(model.image_encoder, save_path)  # Save full encoder model
-        print(f"Saved model to {save_path}")
+            # Save the full encoder model
+            if fim_logtr > best_logtr:
+                best_logtr = fim_logtr
+                save_path = f"{args.save}/{dataset_name}_finetuned.pt"
+                torch.save(model.image_encoder, save_path)  # Save full encoder model
+                print(f"Saved model to {save_path}")
 
 if __name__ == "__main__":
     main()

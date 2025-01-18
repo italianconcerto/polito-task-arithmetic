@@ -36,11 +36,13 @@ def evaluate_multitask_model(args, datasets, task_vectors, alpha, pretrained_pat
     
     # Combine all task vectors at once using sum()
     combined_vector = sum(task_vectors.values(), start=None)
-    
-    # Apply the combined vector with alpha scaling to get merged encoder
-    merged_encoder = combined_vector.apply_to(pretrained_path, scaling_coef=alpha)
+        
+    # Apply the combined vector to get merged encoder
+    pretrained_model = open(pretrained_path, "rb")
+    merged_encoder = combined_vector.apply_to(pretrained_model, scaling_coef=alpha)
     merged_encoder = merged_encoder.to(args.device)
-    merged_encoder.eval()  # Ensure evaluation mode
+    pretrained_model.close()
+    merged_encoder.eval()
     
     # Load single task accuracies for normalization
     with open(f"{args.save}/single_task_results.json", 'r') as f:
