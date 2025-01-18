@@ -9,7 +9,7 @@ def parse_arguments():
     parser.add_argument(
         "--data-location",
         type=str,
-        default=os.path.expanduser("~/data"),
+        default=os.path.expanduser("./data"),
         help="The root directory for the datasets.",
     )
     parser.add_argument(
@@ -132,7 +132,14 @@ def parse_arguments():
         parsed_args.device = "cuda"
     else:
         parsed_args.device = "cpu"
-
+    print(f"Using device: {parsed_args.device}")
     if parsed_args.load is not None and len(parsed_args.load) == 1:
         parsed_args.load = parsed_args.load[0]
     return parsed_args
+
+def main():
+    args = parse_arguments()
+    print(args)
+
+if __name__ == "__main__":
+    main()
