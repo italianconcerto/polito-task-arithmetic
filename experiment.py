@@ -1,43 +1,47 @@
-
-from argparse import Namespace
-import json
+from typing import Dict, Optional
 import os
-
-import torch
-
+from argparse import Namespace
 from finetune import finetune_model
-from modeling import ImageEncoder
+from eval_single_task import evaluate_models
+from args import parse_arguments
 
+def run_experiment(args: Namespace) -> Dict:
+    """
+    Run the complete experiment pipeline: finetuning followed by evaluation.
+    """
+    print("\n=== Starting Experiment ===")
+    
+    # Create necessary directories
+    if not args.save:
+        os.makedirs(args.save, exist_ok=True)
+    
+    # Step 1: Fine-tuning
+    print("\n=== Starting Fine-tuning Phase ===")
+    finetuning_results = finetune_model(args)
+    
+    # Step 2: Evaluation
+    print("\n=== Starting Evaluation Phase ===")
+    evaluation_results = evaluate_models(args, finetuning_results)
+    
+    # Combine results
+    experiment_results = {
+        'finetuning': finetuning_results,
+        'evaluation': evaluation_results
+    }
+    
+    print("\n=== Experiment Completed ===")
+    return experiment_results
 
-def experiment(): 
-    from args import parse_arguments
-    args: Namespace = parse_arguments()
-    print(args)
+def main() -> None:
+    # Parse arguments
+    args = parse_arguments()
+    print("Running experiment with args:", args)
     
-    # Save pretrained model first
+    # Run experiment
+    results = run_experiment(args)
+    
+    print("\nExperiment completed successfully!")
+    print(f"Results saved in: {args.save}")
 
-    encoder: ImageEncoder = ImageEncoder(args)
-    torch.save(encoder, os.path.join(args.save, "pretrained.pt"))
-    
-    # Dictionary to store single task results
-    single_task_results = {}
-    
-    # List of all datasets to process
-    
-    if not args.train_dataset:
-        datasets = ["DTD", "EuroSAT", "GTSRB", "MNIST", "RESISC45", "SVHN"]
-    else:
-        datasets = args.train_dataset
-    
-    for dataset_name in datasets:
-        print(f"\nProcessing {dataset_name}")
-        
-        # Fine-tune the model
-        results = finetune_model(
-            args=args,
-        )
-        
-        
-        
 if __name__ == "__main__":
-    experiment()
+    main()
