@@ -5,6 +5,72 @@ from finetune import finetune_model
 from eval_single_task import evaluate_models
 from eval_task_addition import evaluate_multitask_model
 from args import parse_arguments
+from task_vectors import NonLinearTaskVector
+import pandas as pd
+import numpy as np
+
+def save_results_table(args: Namespace, results: Dict) -> None:
+    """
+    Save results in a CSV format matching the paper's table structure.
+    """
+    datasets = ["DTD", "EuroSAT", "GTSRB", "MNIST", "RESISC45", "SVHN"]
+    
+    # Initialize DataFrame with MultiIndex
+    index = pd.MultiIndex.from_product([
+        ['Single-task Acc.', 'Single-task Acc.', 'log Tr[F̂]',
+         'Single-task Acc.', 'Single-task Acc.', 'log Tr[F̂]',
+         'Single-task Acc.', 'Single-task Acc.', 'log Tr[F̂]',
+         'Absolute Acc.', 'Normalized Acc.', 'Absolute Acc.', 'Normalized Acc.', 'log Tr[F̂]'],
+        ['Test', 'Train', 'Train', 'Test', 'Train', 'Train', 'Test', 'Train', 'Train',
+         'Test', 'Test', 'Train', 'Train', 'Train']
+    ])
+    
+    df = pd.DataFrame(index=index, columns=datasets + ['Average'])
+    
+    # Fill pre-trained model metrics
+    pretrained_results = results['evaluation']['pretrained']
+    for dataset in datasets:
+        df.loc[('Single-task Acc.', 'Test'), dataset] = pretrained_results[dataset]['test']['accuracy']
+        df.loc[('Single-task Acc.', 'Train'), dataset] = pretrained_results[dataset]['train']['accuracy']
+        df.loc[('log Tr[F̂]', 'Train'), dataset] = pretrained_results[dataset]['fim_logtr']
+    
+    # Fill metrics before scaling & addition (fine-tuned models)
+    finetuned_results = results['evaluation']['finetuned']
+    for dataset in datasets:
+        df.loc[('Single-task Acc.', 'Test'), dataset] = finetuned_results[dataset]['test']['accuracy']
+        df.loc[('Single-task Acc.', 'Train'), dataset] = finetuned_results[dataset]['train']['accuracy']
+        df.loc[('log Tr[F̂]', 'Train'), dataset] = finetuned_results[dataset]['fim_logtr']
+    
+    # Fill metrics after scaling
+    scaled_results = results['evaluation']['scaled']
+    for dataset in datasets:
+        df.loc[('Single-task Acc.', 'Test'), dataset] = scaled_results[dataset]['test']['accuracy']
+        df.loc[('Single-task Acc.', 'Train'), dataset] = scaled_results[dataset]['train']['accuracy']
+        df.loc[('log Tr[F̂]', 'Train'), dataset] = scaled_results[dataset]['fim_logtr']
+    
+    # Fill metrics after addition
+    task_addition = results['task_addition']['best_results']
+    for dataset in datasets:
+        dataset_results = task_addition['dataset_results'][dataset]
+        df.loc[('Absolute Acc.', 'Test'), dataset] = dataset_results['test']['accuracy']
+        df.loc[('Normalized Acc.', 'Test'), dataset] = dataset_results['normalized_acc']
+        df.loc[('Absolute Acc.', 'Train'), dataset] = dataset_results['validation']['accuracy']
+        df.loc[('Normalized Acc.', 'Train'), dataset] = dataset_results['validation']['accuracy'] / dataset_results['single_task_acc']
+        df.loc[('log Tr[F̂]', 'Train'), dataset] = dataset_results.get('fim_logtr', np.nan)
+    
+    # Calculate averages
+    df['Average'] = df[datasets].mean(axis=1)
+    
+    # Save to CSV
+    csv_path = os.path.join(args.save, "results_table.csv")
+    df.to_csv(csv_path)
+    print(f"\nSaved results table to: {csv_path}")
+    
+    # Also save as a formatted text file for easy viewing
+    txt_path = os.path.join(args.save, "results_table.txt")
+    with open(txt_path, 'w') as f:
+        f.write(df.to_string())
+    print(f"Saved formatted table to: {txt_path}")
 
 def run_experiment(args: Namespace) -> Dict:
     """
@@ -75,6 +141,9 @@ def run_experiment(args: Namespace) -> Dict:
         'task_addition': task_addition_results
     }
     
+    # Save results table
+    save_results_table(args, experiment_results)
+    
     print("\n=== Experiment Completed ===")
     return experiment_results
 
@@ -94,5 +163,16 @@ def main() -> None:
     print(f"Best average normalized accuracy: {results['task_addition']['best_results']['average_metrics']['normalized_acc']:.4f}")
     print(f"Best average absolute accuracy: {results['task_addition']['best_results']['average_metrics']['absolute_acc']:.2f}%")
 
+
+    # reference = pd.read_csv("reference_table.csv", index_col=[0,1])
+    # results = pd.read_csv("results_table.csv", index_col=[0,1])
+
+    # # Compare results
+    # comparison = pd.DataFrame({
+    #     'Reference': reference['Average'],
+    #     'Our Results': results['Average'],
+    #     'Difference': results['Average'] - reference['Average']
+    # })
+    # print(comparison)
 if __name__ == "__main__":
     main()
