@@ -53,7 +53,7 @@ def train_one_epoch(
 def finetune_model(
     args: Namespace,
     # dataset_name: Optional[str] = None,
-    save: bool = False
+    # save: bool = False
 ) -> Dict[str, Dict]:
     default_epochs_mapping: Dict[str, int] = {
         "DTD": 76,
@@ -184,13 +184,13 @@ def finetune_model(
                     'value': best_accuracy,
                     'epoch': best_accuracy_epoch,
                     'model': best_accuracy_model,
-                    'save_path': os.path.join(args.save, f"{current_dataset}_best_accuracy_epoch{best_accuracy_epoch}.pt") if save and args.save else None
+                    'save_path': os.path.join(args.save, f"{current_dataset}_best_accuracy_epoch{best_accuracy_epoch}.pt") if args.save else None
                 },
                 'fim_logtr': {
                     'value': best_fim_logtr,
                     'epoch': best_fim_epoch,
                     'model': best_fim_model,
-                    'save_path': os.path.join(args.save, f"{current_dataset}_best_fim_epoch{best_fim_epoch}.pt") if save and args.save else None
+                    'save_path': os.path.join(args.save, f"{current_dataset}_best_fim_epoch{best_fim_epoch}.pt") if args.save else None
                 },
                 'loss': lowest_loss
             },
@@ -206,7 +206,7 @@ def finetune_model(
                 'accuracy': epoch_results[-1]['accuracy'],
                 'fim_logtr': epoch_results[-1]['fim_logtr'],
                 'loss': epoch_results[-1]['loss'],
-                'save_path': os.path.join(args.save, f"{current_dataset}_final_epoch{num_epochs}.pt") if save and args.save else None
+                'save_path': os.path.join(args.save, f"{current_dataset}_final_epoch{num_epochs}.pt") if args.save else None
             }
         }
     
@@ -218,9 +218,9 @@ def main() -> None:
     print(args)
     
     # Save pretrained model first
+
     encoder: ImageEncoder = ImageEncoder(args)
-    if args.save:
-        torch.save(encoder, os.path.join(args.save, "pretrained.pt"))
+    torch.save(encoder, os.path.join(args.save, "pretrained.pt"))
     
     # Dictionary to store single task results
     single_task_results = {}
