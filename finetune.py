@@ -67,6 +67,7 @@ def finetune_model(
     datasets_to_process: List[str] = [dataset_name] if dataset_name else list(default_epochs_mapping.keys())
     
     results: Dict[str, Dict] = {}
+    
     for current_dataset in datasets_to_process:
         print(f"\nFine-tuning on {current_dataset}")
         
@@ -225,6 +226,8 @@ def main() -> None:
     dtd_results = results["DTD"]
     print(f"Best accuracy: {dtd_results['best_metrics']['accuracy']['value']:.2f}% (epoch {dtd_results['best_metrics']['accuracy']['epoch']})")
     print(f"Best FIM log trace: {dtd_results['best_metrics']['fim_logtr']['value']:.4f} (epoch {dtd_results['best_metrics']['fim_logtr']['epoch']})")
+    
+    print(f"All the results: {results}")
 
 if __name__ == "__main__":
     main()
