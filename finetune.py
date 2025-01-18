@@ -11,6 +11,7 @@ from heads import get_classification_head
 from utils import train_diag_fim_logtr
 import copy
 import os
+import json
 
 def train_one_epoch(
     model: ImageClassifier,
@@ -217,17 +218,55 @@ def main() -> None:
     args: Namespace = parse_arguments()
     print(args)
     
-    results = finetune_model(
-        args=args,
-        dataset_name="DTD",
-    )
+    # Save pretrained model first
+    encoder: ImageEncoder = ImageEncoder(args)
+    torch.save(encoder, os.path.join(args.save, "pretrained.pt"))
     
-    # Example of accessing results
-    dtd_results = results["DTD"]
-    print(f"Best accuracy: {dtd_results['best_metrics']['accuracy']['value']:.2f}% (epoch {dtd_results['best_metrics']['accuracy']['epoch']})")
-    print(f"Best FIM log trace: {dtd_results['best_metrics']['fim_logtr']['value']:.4f} (epoch {dtd_results['best_metrics']['fim_logtr']['epoch']})")
+    # Dictionary to store single task results
+    single_task_results = {}
     
-    print(f"All the results: {results}")
+    # List of all datasets to process
+    datasets = ["DTD", "EuroSAT", "GTSRB", "MNIST", "RESISC45", "SVHN"]
+    
+    for dataset_name in datasets:
+        print(f"\nProcessing {dataset_name}")
+        
+        # Fine-tune the model
+        results = finetune_model(
+            args=args,
+            dataset_name=dataset_name,
+            save=True  # This will save best_accuracy, best_fim, and final models
+        )
+        
+        # Store test accuracies for normalization in task addition
+        dataset_results = results[dataset_name]
+        single_task_results[dataset_name] = {
+            "test_acc": dataset_results["best_metrics"]["accuracy"]["value"],
+            "best_model_path": dataset_results["best_metrics"]["accuracy"]["save_path"],
+            "best_fim_path": dataset_results["best_metrics"]["fim_logtr"]["save_path"],
+            "final_model_path": dataset_results["final_model"]["save_path"]
+        }
+        
+        # Save the best model as the finetuned model for task vectors
+        best_model = dataset_results["best_metrics"]["accuracy"]["model"]
+        finetuned_path = os.path.join(args.save, f"{dataset_name}_finetuned.pt")
+        torch.save(best_model, finetuned_path)
+    
+    # Save single task results for normalization
+    single_task_path = os.path.join(args.save, "single_task_results.json")
+    with open(single_task_path, 'w') as f:
+        json.dump(single_task_results, f, indent=4)
+    
+    print("\nSaved all models and results:")
+    print(f"1. Pretrained model: {os.path.join(args.save, 'pretrained.pt')}")
+    print(f"2. Single task results: {single_task_path}")
+    print("3. For each dataset:")
+    for dataset_name in datasets:
+        print(f"\n{dataset_name}:")
+        print(f"  - Finetuned model: {os.path.join(args.save, f'{dataset_name}_finetuned.pt')}")
+        print(f"  - Best accuracy model: {single_task_results[dataset_name]['best_model_path']}")
+        print(f"  - Best FIM model: {single_task_results[dataset_name]['best_fim_path']}")
+        print(f"  - Final model: {single_task_results[dataset_name]['final_model_path']}")
 
 if __name__ == "__main__":
     main()
