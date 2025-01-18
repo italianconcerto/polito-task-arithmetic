@@ -184,7 +184,7 @@ def main() -> None:
     else:
         raise FileNotFoundError(f"Finetuning results not found at {finetuning_results_path}")
     
-    evaluation_results = evaluate_models(args, finetuning_results)
-
+    evaluate_models(args, finetuning_results)
+    
 if __name__ == "__main__":
     main()
