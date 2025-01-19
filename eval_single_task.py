@@ -179,7 +179,7 @@ def main() -> None:
     args: Namespace = parse_arguments()
     
     # Load finetuning results if they exist
-    finetuning_results_path = os.path.join(args.save, "finetuning_results.json")
+    finetuning_results_path = os.path.join(args.save, "tmp/finetuning_results.json")
     if os.path.exists(finetuning_results_path):
         with open(finetuning_results_path, 'r') as f:
             finetuning_results = json.load(f)

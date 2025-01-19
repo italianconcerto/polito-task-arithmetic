@@ -8,6 +8,7 @@ from args import parse_arguments
 from task_vectors import NonLinearTaskVector
 import pandas as pd
 import numpy as np
+import json
 
 def save_results_table(args: Namespace, results: Dict) -> None:
     """
@@ -81,26 +82,37 @@ def run_experiment(args: Namespace) -> Dict:
         args.train_datasets = ["DTD", "EuroSAT", "GTSRB", "MNIST", "RESISC45", "SVHN"]
     if not args.eval_datasets:
         args.eval_datasets = ["DTD", "EuroSAT", "GTSRB", "MNIST", "RESISC45", "SVHN"]
+    
     # Create necessary directories
     os.makedirs(args.save, exist_ok=True)
+    os.makedirs(os.path.join(args.save, "tmp"), exist_ok=True)
     
     # Step 1: Fine-tuning (with caching)
     print("\n=== Starting Fine-tuning Phase ===")
-    cache_path = os.path.join(args.save, "tmp", "finetune_results.json")
+    finetune_cache = os.path.join(args.save, "tmp", "finetune_results.json")
     
-    if os.path.exists(cache_path):
-        print(f"Found cached fine-tuning results at {cache_path}")
+    if os.path.exists(finetune_cache):
+        print(f"Found cached fine-tuning results at {finetune_cache}")
         finetuning_results = load_finetune_results(args)
         print("Successfully loaded cached fine-tuning results")
-
     else:
         print("No cached results found. Running fine-tuning from scratch...")
         finetuning_results = finetune_model(args)
         save_finetune_results(args, finetuning_results)
     
-    # Step 2: Evaluation
+    # Step 2: Evaluation (with caching)
     print("\n=== Starting Evaluation Phase ===")
-    evaluation_results = evaluate_models(args, finetuning_results)
+    eval_cache = os.path.join(args.save, "tmp", "evaluation_results.json")
+    
+    if os.path.exists(eval_cache):
+        print(f"Found cached evaluation results at {eval_cache}")
+        with open(eval_cache, 'r') as f:
+            evaluation_results = json.load(f)
+        print("Successfully loaded cached evaluation results")
+    else:
+        print("No cached evaluation results found. Running evaluation from scratch...")
+        evaluation_results = evaluate_models(args, finetuning_results)
+        # Evaluation results are automatically saved by evaluate_models
     
     # Step 3: Task Addition
     print("\n=== Starting Task Addition Phase ===")
