@@ -1,7 +1,7 @@
 from typing import Dict, Optional
 import os
 from argparse import Namespace
-from finetune import finetune_model
+from finetune import finetune_model, load_finetune_results, save_finetune_results
 from eval_single_task import evaluate_models
 from eval_task_addition import evaluate_multitask_model
 from args import parse_arguments
@@ -84,9 +84,19 @@ def run_experiment(args: Namespace) -> Dict:
     # Create necessary directories
     os.makedirs(args.save, exist_ok=True)
     
-    # Step 1: Fine-tuning
+    # Step 1: Fine-tuning (with caching)
     print("\n=== Starting Fine-tuning Phase ===")
-    finetuning_results = finetune_model(args)
+    cache_path = os.path.join(args.save, "tmp", "finetune_results.json")
+    
+    if os.path.exists(cache_path):
+        print(f"Found cached fine-tuning results at {cache_path}")
+        finetuning_results = load_finetune_results(args)
+        print("Successfully loaded cached fine-tuning results")
+
+    else:
+        print("No cached results found. Running fine-tuning from scratch...")
+        finetuning_results = finetune_model(args)
+        save_finetune_results(args, finetuning_results)
     
     # Step 2: Evaluation
     print("\n=== Starting Evaluation Phase ===")

@@ -212,6 +212,105 @@ def finetune_model(
     
     return results
 
+
+def save_finetune_results(args: Namespace, results: Dict) -> None:
+    results_dir = os.path.join(args.save, "tmp")
+    os.makedirs(results_dir, exist_ok=True)
+    results_path = os.path.join(results_dir, "finetune_results.json")
+    
+    # Convert models to paths and save them
+    serializable_results = {}
+    for dataset, dataset_results in results.items():
+        # Create dataset-specific directory
+        dataset_dir = os.path.join(results_dir, dataset)
+        os.makedirs(dataset_dir, exist_ok=True)
+        
+        serializable_results[dataset] = {
+            'epoch_history': dataset_results['epoch_history'],
+            'best_metrics': {
+                'accuracy': {
+                    'value': dataset_results['best_metrics']['accuracy']['value'],
+                    'epoch': dataset_results['best_metrics']['accuracy']['epoch'],
+                },
+                'fim_logtr': {
+                    'value': dataset_results['best_metrics']['fim_logtr']['value'],
+                    'epoch': dataset_results['best_metrics']['fim_logtr']['epoch'],
+                },
+                'loss': dataset_results['best_metrics']['loss']
+            },
+            'training_details': dataset_results['training_details'],
+            'final_model': {
+                'epoch': dataset_results['final_model']['epoch'],
+                'accuracy': dataset_results['final_model']['accuracy'],
+                'fim_logtr': dataset_results['final_model']['fim_logtr'],
+                'loss': dataset_results['final_model']['loss'],
+            }
+        }
+        
+        # Save models and update paths in serializable results
+        # Best accuracy model
+        if dataset_results['best_metrics']['accuracy']['model'] is not None:
+            acc_model_path = os.path.join(dataset_dir, f"best_accuracy_model.pt")
+            torch.save(dataset_results['best_metrics']['accuracy']['model'].state_dict(), acc_model_path)
+            serializable_results[dataset]['best_metrics']['accuracy']['model_path'] = acc_model_path
+            
+        # Best FIM model
+        if dataset_results['best_metrics']['fim_logtr']['model'] is not None:
+            fim_model_path = os.path.join(dataset_dir, f"best_fim_model.pt")
+            torch.save(dataset_results['best_metrics']['fim_logtr']['model'].state_dict(), fim_model_path)
+            serializable_results[dataset]['best_metrics']['fim_logtr']['model_path'] = fim_model_path
+            
+        # Final model
+        if dataset_results['final_model']['model'] is not None:
+            final_model_path = os.path.join(dataset_dir, f"final_model.pt")
+            torch.save(dataset_results['final_model']['model'].state_dict(), final_model_path)
+            serializable_results[dataset]['final_model']['model_path'] = final_model_path
+    
+    # Save the JSON with all results and model paths
+    with open(results_path, 'w') as f:
+        json.dump(serializable_results, f, indent=4)
+    
+    print(f"Saved fine-tuning results to {results_path}")
+    print("Model files saved in dataset-specific directories under", results_dir)
+
+def load_finetune_results(args: Namespace) -> Dict:
+    results_path = os.path.join(args.save, "tmp", "finetune_results.json")
+    
+    if not os.path.exists(results_path):
+        raise FileNotFoundError(f"No fine-tuning results found at {results_path}")
+        
+    with open(results_path, 'r') as f:
+        results = json.load(f)
+    
+    # Load models from saved paths
+    for dataset, dataset_results in results.items():
+        # Load best accuracy model if path exists
+        if 'model_path' in dataset_results['best_metrics']['accuracy']:
+            model_path = dataset_results['best_metrics']['accuracy']['model_path']
+            if os.path.exists(model_path):
+                encoder = ImageEncoder(args)
+                encoder.load_state_dict(torch.load(model_path))
+                dataset_results['best_metrics']['accuracy']['model'] = encoder
+            
+        # Load best FIM model if path exists
+        if 'model_path' in dataset_results['best_metrics']['fim_logtr']:
+            model_path = dataset_results['best_metrics']['fim_logtr']['model_path']
+            if os.path.exists(model_path):
+                encoder = ImageEncoder(args)
+                encoder.load_state_dict(torch.load(model_path))
+                dataset_results['best_metrics']['fim_logtr']['model'] = encoder
+            
+        # Load final model if path exists
+        if 'model_path' in dataset_results['final_model']:
+            model_path = dataset_results['final_model']['model_path']
+            if os.path.exists(model_path):
+                encoder = ImageEncoder(args)
+                encoder.load_state_dict(torch.load(model_path))
+                dataset_results['final_model']['model'] = encoder
+    
+    return results
+
+
 def main() -> None:
     from args import parse_arguments
     args: Namespace = parse_arguments()
