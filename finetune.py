@@ -271,7 +271,8 @@ def save_finetune_results(args: Namespace, results: Dict) -> None:
             'epoch_history': dataset_results['epoch_history'],
             'best_metrics': {
                 'accuracy': {
-                    'value': dataset_results['best_metrics']['accuracy']['value'],
+                    'train': dataset_results['best_metrics']['accuracy']['train'],
+                    'validation': dataset_results['best_metrics']['accuracy']['validation'],
                     'epoch': dataset_results['best_metrics']['accuracy']['epoch'],
                 },
                 'fim_logtr': {
@@ -283,7 +284,8 @@ def save_finetune_results(args: Namespace, results: Dict) -> None:
             'training_details': dataset_results['training_details'],
             'final_model': {
                 'epoch': dataset_results['final_model']['epoch'],
-                'accuracy': dataset_results['final_model']['accuracy'],
+                'train_accuracy': dataset_results['final_model']['train_accuracy'],
+                'validation_accuracy': dataset_results['final_model']['validation_accuracy'],
                 'fim_logtr': dataset_results['final_model']['fim_logtr'],
                 'loss': dataset_results['final_model']['loss'],
             }
