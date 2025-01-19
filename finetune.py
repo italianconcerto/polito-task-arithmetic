@@ -16,10 +16,12 @@ import json
 def train_one_epoch(
     model: ImageClassifier,
     train_loader: torch.utils.data.DataLoader,
+    validation_loader: torch.utils.data.DataLoader,
     optimizer: torch.optim.Optimizer,
     criterion: nn.Module,
     args: Namespace
-) -> Tuple[float, float]:
+) -> Tuple[float, float, float, float]:
+    # Training phase
     model.train()
     total_loss: float = 0
     correct: int = 0
@@ -45,10 +47,36 @@ def train_one_epoch(
         
         progress_bar.set_postfix({
             'loss': total_loss / (progress_bar.n + 1),
-            'acc': 100. * correct / total
+            'train_acc': 100. * correct / total
         })
     
-    return total_loss / len(train_loader), 100. * correct / total
+    train_loss = total_loss / len(train_loader)
+    train_acc = 100. * correct / total
+    
+    # Validation phase
+    model.eval()
+    val_loss: float = 0
+    val_correct: int = 0
+    val_total: int = 0
+    
+    with torch.no_grad():
+        for batch in validation_loader:
+            batch = maybe_dictionarize(batch)
+            x: torch.Tensor = batch['images'].to(args.device)
+            y: torch.Tensor = batch['labels'].to(args.device)
+            
+            outputs: torch.Tensor = model(x)
+            loss: torch.Tensor = criterion(outputs, y)
+            
+            val_loss += loss.item()
+            _, predicted = outputs.max(1)
+            val_total += y.size(0)
+            val_correct += predicted.eq(y).sum().item()
+    
+    val_loss = val_loss / len(validation_loader)
+    val_acc = 100. * val_correct / val_total
+    
+    return train_loss, train_acc, val_loss, val_acc
 
 def finetune_model(
     args: Namespace,
@@ -92,13 +120,14 @@ def finetune_model(
             num_workers=2
         )
         train_loader: torch.utils.data.DataLoader = get_dataloader(dataset, is_train=True, args=args)
+        validation_loader: torch.utils.data.DataLoader = get_dataloader(dataset, is_train=False, args=args)
         
         num_epochs: int = args.epochs if args.epochs else default_epochs_mapping[current_dataset]
         
         epoch_results: List[Dict[str, Union[int, float]]] = []
         
         # Track best models and their metrics
-        best_accuracy: float = float('-inf')
+        best_val_accuracy: float = float('-inf')
         best_fim_logtr: float = float('-inf')
         best_accuracy_model: Optional[ImageEncoder] = None
         best_fim_model: Optional[ImageEncoder] = None
@@ -108,17 +137,17 @@ def finetune_model(
         for epoch in range(num_epochs):
             print(f"\nEpoch {epoch + 1}/{num_epochs}")
             
-            # Training step
-            train_loss, train_acc = train_one_epoch(
-                model, train_loader, optimizer, criterion, args
+            # Training and validation step
+            train_loss, train_acc, val_loss, val_acc = train_one_epoch(
+                model, train_loader, validation_loader, optimizer, criterion, args
             )
             
             # Calculate FIM log trace
             fim_logtr: float = train_diag_fim_logtr(args, model, current_dataset)
             
             # Update best models if needed
-            if train_acc > best_accuracy:
-                best_accuracy = train_acc
+            if val_acc > best_val_accuracy:
+                best_val_accuracy = val_acc
                 best_accuracy_model = copy.deepcopy(model.image_encoder)
                 best_accuracy_epoch = epoch + 1
                 
@@ -131,14 +160,18 @@ def finetune_model(
             epoch_data = {
                 'epoch': epoch + 1,
                 'loss': train_loss,
-                'accuracy': train_acc,
+                'train_accuracy': train_acc,
+                'validation_loss': val_loss,
+                'validation_accuracy': val_acc,
                 'fim_logtr': fim_logtr,
             }
             epoch_results.append(epoch_data)
             
             print(
                 f"Training Loss: {train_loss:.4f}, "
-                f"Accuracy: {train_acc:.2f}%, "
+                f"Train Accuracy: {train_acc:.2f}%, "
+                f"Validation Loss: {val_loss:.4f}, "
+                f"Validation Accuracy: {val_acc:.2f}%, "
                 f"FIM Log Trace: {fim_logtr:.4f}"
             )
         
@@ -153,7 +186,7 @@ def finetune_model(
                 f"{current_dataset}_best_accuracy_epoch{best_accuracy_epoch}.pt"
             )
             torch.save(best_accuracy_model.state_dict(), acc_save_path)
-            print(f"Saved best accuracy model (acc: {best_accuracy:.2f}%, epoch: {best_accuracy_epoch}) to {acc_save_path}")
+            print(f"Saved best accuracy model (val_acc: {best_val_accuracy:.2f}%, epoch: {best_accuracy_epoch}) to {acc_save_path}")
             
             # Save best FIM model
             fim_save_path = os.path.join(
@@ -172,7 +205,8 @@ def finetune_model(
             print(f"Saved final model (epoch: {num_epochs}) to {final_save_path}")
         
         # Find best metrics
-        best_accuracy: float = max(result['accuracy'] for result in epoch_results)
+        best_train_accuracy: float = max(result['train_accuracy'] for result in epoch_results)
+        best_val_accuracy: float = max(result['validation_accuracy'] for result in epoch_results)
         best_fim_logtr: float = max(result['fim_logtr'] for result in epoch_results)
         lowest_loss: float = min(result['loss'] for result in epoch_results)
         
@@ -181,7 +215,8 @@ def finetune_model(
             'epoch_history': epoch_results,
             'best_metrics': {
                 'accuracy': {
-                    'value': best_accuracy,
+                    'train': best_train_accuracy,
+                    'validation': best_val_accuracy,
                     'epoch': best_accuracy_epoch,
                     'model': best_accuracy_model,
                     'save_path': os.path.join(args.save, f"{current_dataset}_best_accuracy_epoch{best_accuracy_epoch}.pt") if args.save else None
@@ -203,7 +238,8 @@ def finetune_model(
             'final_model': {
                 'model': final_model,
                 'epoch': num_epochs,
-                'accuracy': epoch_results[-1]['accuracy'],
+                'train_accuracy': epoch_results[-1]['train_accuracy'],
+                'validation_accuracy': epoch_results[-1]['validation_accuracy'],
                 'fim_logtr': epoch_results[-1]['fim_logtr'],
                 'loss': epoch_results[-1]['loss'],
                 'save_path': os.path.join(args.save, f"{current_dataset}_final_epoch{num_epochs}.pt") if args.save else None
