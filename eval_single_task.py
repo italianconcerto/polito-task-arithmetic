@@ -83,7 +83,7 @@ def evaluate_single_task(args, dataset_name):
 def main():
     args = parse_arguments()
     
-    datasets = ["DTD", "EuroSAT", "GTSRB", "MNIST", "RESISC45", "SVHN"]
+    datasets = args.eval_datasets
     all_results = {}
     
     for dataset_name in datasets:
