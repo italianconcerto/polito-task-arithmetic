@@ -11,7 +11,7 @@ from datasets.registry import get_dataset
 from modeling import ImageClassifier, ImageEncoder
 from heads import get_classification_head
 from task_vectors import NonLinearTaskVector
-from utils import DotDict
+from utils import DotDict, train_diag_fim_logtr
 import os
 
 def evaluate(
@@ -69,7 +69,6 @@ def evaluate_multitask_model(
     # Combine all task vectors at once using sum()
     combined_vector = sum(task_vectors.values(), start=None)
     
-    
     pretrained_path: str = f"{args.save}/pretrained.pt"
     # Apply the combined vector to get merged encoder
     pretrained_model = torch.load(pretrained_path, map_location=args.device)
@@ -110,6 +109,9 @@ def evaluate_multitask_model(
         val_loader = get_dataloader(val_dataset, is_train=False, args=args)
         val_results = evaluate(model, val_loader, args, desc=f"Validating {dataset_name}")
         
+        # Calculate FIM logtr for validation dataset
+        fim_logtr: float = train_diag_fim_logtr(args, model, f"{dataset_name}Val")
+        
         # Evaluate on test set
         test_dataset = get_dataset(
             dataset_name,
@@ -129,7 +131,8 @@ def evaluate_multitask_model(
             'validation': val_results,
             'test': test_results,
             'single_task_acc': single_task_acc,
-            'normalized_acc': test_results['accuracy'] / single_task_acc
+            'normalized_acc': test_results['accuracy'] / single_task_acc,
+            'fim_logtr': fim_logtr
         }
         
         # Print current results
@@ -137,6 +140,7 @@ def evaluate_multitask_model(
         print(f"  Val Acc: {val_results['accuracy']:.2f}%")
         print(f"  Test Acc: {test_results['accuracy']:.2f}%")
         print(f"  Normalized Acc: {(test_results['accuracy']/single_task_acc):.4f}")
+        print(f"  FIM logtr: {fim_logtr:.4f}")
     
     # Calculate averages
     avg_absolute_acc = sum(absolute_accs) / len(absolute_accs)
@@ -164,18 +168,15 @@ def evaluate_multitask_model(
                         'accuracy': float(data['validation']['accuracy']),
                         'loss': float(data['validation']['loss']),
                         'num_samples': data['validation']['num_samples'],
-                        'predictions': data['validation']['predictions'],
-                        'labels': data['validation']['labels']
                     },
                     'test': {
                         'accuracy': float(data['test']['accuracy']),
                         'loss': float(data['test']['loss']),
                         'num_samples': data['test']['num_samples'],
-                        'predictions': data['test']['predictions'],
-                        'labels': data['test']['labels']
                     },
                     'single_task_acc': float(data['single_task_acc']),
-                    'normalized_acc': float(data['normalized_acc'])
+                    'normalized_acc': float(data['normalized_acc']),
+                    'fim_logtr': float(data['fim_logtr'])
                 }
                 for name, data in dataset_results.items()
             },
