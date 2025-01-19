@@ -1,10 +1,13 @@
 from typing import Dict, Optional
 import os
 from argparse import Namespace
+
+import torch
 from finetune import finetune_model, load_finetune_results, save_finetune_results
 from eval_single_task import evaluate_models
 from eval_task_addition import evaluate_multitask_model
 from args import parse_arguments
+from modeling import ImageEncoder
 from task_vectors import NonLinearTaskVector
 import pandas as pd
 import numpy as np
@@ -83,6 +86,9 @@ def run_experiment(args: Namespace) -> Dict:
     if not args.eval_datasets:
         args.eval_datasets = ["DTD", "EuroSAT", "GTSRB", "MNIST", "RESISC45", "SVHN"]
     
+    if not os.path.exists(os.path.join(args.save, "pretrained.pt")):
+        encoder: ImageEncoder = ImageEncoder(args)
+        torch.save(encoder, os.path.join(args.save, "pretrained.pt"))
     # Create necessary directories
     os.makedirs(args.save, exist_ok=True)
     os.makedirs(os.path.join(args.save, "tmp"), exist_ok=True)

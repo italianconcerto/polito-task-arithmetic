@@ -68,7 +68,7 @@ def evaluate_models(args: Namespace, finetuning_results: Dict[str, Dict]) -> Dic
         dataset_results = finetuning_results[dataset_name]
         print(f"\nEvaluating models for {dataset_name}")
         dataset_eval_results = {}
-        
+        breakpoint()
         # Get paths for all model versions
         model_paths = {
             'best_accuracy': dataset_results['best_metrics']['accuracy']['save_path'],
