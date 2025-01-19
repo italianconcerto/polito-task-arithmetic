@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Tuple, Union, Literal
+from typing import Dict, List, Optional, Tuple, Union
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -84,12 +84,18 @@ def finetune_model(
     # save: bool = False
 ) -> Dict[str, Dict]:
     default_epochs_mapping: Dict[str, int] = {
-        "DTD": 76,
-        "EuroSAT": 12,
-        "GTSRB": 11,
-        "MNIST": 5,
-        "RESISC45": 15,
-        "SVHN": 4
+        # "DTD": 76,
+        # "EuroSAT": 12,
+        # "GTSRB": 11,
+        # "MNIST": 5,
+        # "RESISC45": 15,
+        # "SVHN": 4
+        "DTD": 1,
+        "EuroSAT": 1,
+        "GTSRB": 1,
+        "MNIST": 1,
+        "RESISC45": 1,
+        "SVHN": 1
     }
     dataset_name = args.train_dataset
     datasets_to_process: List[str] = dataset_name if dataset_name else list(default_epochs_mapping.keys())

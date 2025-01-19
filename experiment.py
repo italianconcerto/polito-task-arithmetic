@@ -55,8 +55,8 @@ def save_results_table(args: Namespace, results: Dict) -> None:
         dataset_results = task_addition['dataset_results'][dataset]
         df.loc[('Absolute Acc.', 'Test'), dataset] = dataset_results['test']['accuracy']
         df.loc[('Normalized Acc.', 'Test'), dataset] = dataset_results['normalized_acc']
-        df.loc[('Absolute Acc.', 'Train'), dataset] = dataset_results['validation']['accuracy']
-        df.loc[('Normalized Acc.', 'Train'), dataset] = dataset_results['validation']['accuracy'] / dataset_results['single_task_acc']
+        df.loc[('Absolute Acc.', 'Train'), dataset] = dataset_results['train']['accuracy']
+        df.loc[('Normalized Acc.', 'Train'), dataset] = dataset_results['train']['accuracy'] / dataset_results['single_task_acc']
         df.loc[('log Tr[F̂]', 'Train'), dataset] = dataset_results.get('fim_logtr', np.nan)
     
     # Calculate averages

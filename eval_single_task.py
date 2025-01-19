@@ -151,19 +151,20 @@ def evaluate_models(args: Namespace, finetuning_results: Dict[str, Dict]) -> Dic
             for model_type, model_results in dataset_results.items():
                 json_results[dataset_name][model_type] = {
                     'model_info': model_results['model_info'],
+                    'train': {
+                        'accuracy': float(model_results['validation']['accuracy']),
+                        'loss': float(model_results['validation']['loss']),
+                        'num_samples': model_results['validation']['num_samples'],
+                    },
                     'validation': {
                         'accuracy': float(model_results['validation']['accuracy']),
                         'loss': float(model_results['validation']['loss']),
                         'num_samples': model_results['validation']['num_samples'],
-                        # 'predictions': model_results['validation']['predictions'],
-                        # 'labels': model_results['validation']['labels']
                     },
                     'test': {
                         'accuracy': float(model_results['test']['accuracy']),
                         'loss': float(model_results['test']['loss']),
                         'num_samples': model_results['test']['num_samples'],
-                        # 'predictions': model_results['test']['predictions'],
-                        # 'labels': model_results['test']['labels']
                     },
                     'fim_logtr': float(model_results['fim_logtr'])
                 }
