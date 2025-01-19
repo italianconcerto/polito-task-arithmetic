@@ -77,7 +77,10 @@ def run_experiment(args: Namespace) -> Dict:
     Run the complete experiment pipeline: finetuning, evaluation, and task addition.
     """
     print("\n=== Starting Experiment ===")
-    
+    if not args.train_datasets:
+        args.train_datasets = ["DTD", "EuroSAT", "GTSRB", "MNIST", "RESISC45", "SVHN"]
+    if not args.eval_datasets:
+        args.eval_datasets = ["DTD", "EuroSAT", "GTSRB", "MNIST", "RESISC45", "SVHN"]
     # Create necessary directories
     os.makedirs(args.save, exist_ok=True)
     

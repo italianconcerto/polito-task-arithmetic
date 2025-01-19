@@ -14,13 +14,13 @@ def parse_arguments():
     )
     parser.add_argument(
         "--eval-datasets",
-        default=None,
+        default="DTD,EuroSAT,GTSRB,MNIST,RESISC45,SVHN",
         type=lambda x: x.split(","),
         help="Which datasets to use for evaluation. Split by comma, e.g. MNIST,EuroSAT. ",
     )
     parser.add_argument(
         "--train-dataset",
-        default=None,
+        default="DTD,EuroSAT,GTSRB,MNIST,RESISC45,SVHN",
         type=lambda x: x.split(","),
         help="Which dataset(s) to patch on.",
     )
