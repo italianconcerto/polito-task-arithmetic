@@ -8,5 +8,6 @@ results/*
 .venv/*
 **/.ipynb_checkpoints/*
 logs/*
+other_results/*
 nohup_*.out
 comparison.csv
