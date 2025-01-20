@@ -33,7 +33,8 @@ def evaluate(model, loader, args, desc=None):
 def evaluate_singletask_model(args, datasets, task_vectors, alpha, pretrained_path):
     results = {}
     # Combine all task vectors at once using sum()
-    for dataset_name in datasets:
+    for dataset_name in tqdm(datasets):
+        print(f"\nEvaluating singletask {dataset_name} scaled with alpha {alpha}")
         task_vector = task_vectors[dataset_name]
         pretrained_model = open(pretrained_path, "rb")
         # Maybe should do this?
@@ -84,7 +85,7 @@ def evaluate_singletask_model(args, datasets, task_vectors, alpha, pretrained_pa
         }
         
 
-        return results
+    return results
         
         
 
