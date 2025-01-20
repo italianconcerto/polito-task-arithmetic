@@ -42,7 +42,7 @@ EOF
 
 # Get current timestamp for log file
 timestamp=$(date +"%Y%m%d_%H%M%S")
-log_file="logs/experiment_${timestamp}.log"
+log_file="logs/other_experiments_${timestamp}.log"
 
 # Function to log messages to both console and file
 log() {
