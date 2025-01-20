@@ -95,8 +95,8 @@ def main():
             train_loss, train_acc = train_one_epoch(
                 model, train_loader, optimizer, criterion, args
             )
-            fim_logtr = train_diag_fim_logtr(args, model, dataset_name)
-            
+            fim_logtr = train_diag_fim_logtr(args, model, dataset_name+"Val")
+                        
             print(f"Training Loss: {train_loss:.4f}, Accuracy: {train_acc:.2f}%")
         
             # Save the full encoder model

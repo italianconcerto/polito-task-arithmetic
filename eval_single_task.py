@@ -71,7 +71,7 @@ def evaluate_single_task(args, dataset_name):
     results['test_acc'] = test_acc
     
     # Compute Fisher Information Matrix log-trace
-    fim_logtr = train_diag_fim_logtr(args, model, dataset_name)
+    fim_logtr = train_diag_fim_logtr(args, model, dataset_name+"Val")
     results['fim_logtr'] = fim_logtr
     
     print(f"\nResults for {dataset_name}:")

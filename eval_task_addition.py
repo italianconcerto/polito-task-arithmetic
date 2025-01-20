@@ -33,7 +33,7 @@ def evaluate(model, loader, args, desc=None):
 
 def evaluate_singletask_model(args, datasets, task_vectors, alpha, pretrained_path):
     results = {}
-    # Combine all task vectors at once using sum()
+    
     for dataset_name in tqdm(datasets):
         print(f"\nEvaluating singletask {dataset_name} scaled with alpha {alpha}")
         task_vector = task_vectors[dataset_name]
@@ -77,7 +77,7 @@ def evaluate_singletask_model(args, datasets, task_vectors, alpha, pretrained_pa
         test_loader = get_dataloader(test_dataset, is_train=False, args=args)
         test_acc = evaluate(model, test_loader, args, desc=f"Testing {dataset_name}")
         
-        fim_logtr = train_diag_fim_logtr(args, model, dataset_name)
+        fim_logtr = train_diag_fim_logtr(args, model, dataset_name + "Val")
         
         results[dataset_name] = {
             "val_acc": val_acc,
@@ -159,7 +159,7 @@ def evaluate_multitask_model(args, datasets, task_vectors, alpha, pretrained_pat
         absolute_accs.append(test_acc)
         normalized_accs.append(test_acc / single_task_acc)
         
-        fim_logtr = train_diag_fim_logtr(args, model, dataset_name)
+        fim_logtr = train_diag_fim_logtr(args, model, dataset_name+"Val")
         fim_logtrs.append(fim_logtr)
         results[dataset_name] = {
             "val_acc": val_acc,
