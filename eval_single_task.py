@@ -46,6 +46,17 @@ def evaluate_single_task(args, dataset_name):
     
     results = {}
     
+    train_dataset = get_dataset(
+        f"{dataset_name}Val",
+        preprocess=model.train_preprocess,
+        location=args.data_location,
+        batch_size=args.batch_size,
+        num_workers=2
+    )
+    train_loader = get_dataloader(train_dataset, is_train=True, args=args)
+    train_acc = evaluate(model, train_loader, args)
+    results['train_acc'] = train_acc
+    
     # Evaluate on validation set
     val_dataset = get_dataset(
         f"{dataset_name}Val",
