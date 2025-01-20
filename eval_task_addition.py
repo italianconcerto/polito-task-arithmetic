@@ -1,4 +1,5 @@
 import json
+import random
 import torch
 from tqdm import tqdm
 from args import parse_arguments
@@ -193,6 +194,13 @@ def evaluate_multitask_model(args, datasets, task_vectors, alpha, pretrained_pat
 
 def main():
     args = parse_arguments()
+    
+    if args.seed is not None:
+        torch.manual_seed(args.seed)
+        torch.cuda.manual_seed_all(args.seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+        random.seed(args.seed)
     
     # Set device to CUDA if available, CPU as fallback
     if torch.cuda.is_available():

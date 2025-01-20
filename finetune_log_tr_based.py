@@ -1,3 +1,4 @@
+import random
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -41,6 +42,13 @@ def train_one_epoch(model, train_loader, optimizer, criterion, args):
 
 def main():
     args = parse_arguments()
+    
+    if args.seed is not None:
+        torch.manual_seed(args.seed)
+        torch.cuda.manual_seed_all(args.seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+        random.seed(args.seed)
     
     epochs_mapping = {
         "DTD": 76,
