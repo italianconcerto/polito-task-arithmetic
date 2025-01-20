@@ -33,6 +33,28 @@ def recalculate_fim_single_task(args, dataset_name):
     
     return fim_logtr
 
+def recalculate_fim_scaled_single_task(args, dataset_name, task_vector, alpha, pretrained_path):
+    """Recalculate FIM log-trace for a single task model with scaling."""
+    print(f"\nRecalculating FIM for {dataset_name} with alpha={alpha}")
+    
+    # Apply the task vector with scaling
+    pretrained_model = open(pretrained_path, "rb")
+    scaled_encoder = task_vector.apply_to(pretrained_model, scaling_coef=alpha)
+    scaled_encoder = scaled_encoder.to(args.device)
+    scaled_encoder.eval()
+    
+    # Create model with scaled encoder
+    head = get_classification_head(args, f"{dataset_name}Val")
+    head = head.to(args.device)
+    model = ImageClassifier(scaled_encoder, head)
+    model = model.to(args.device)
+    
+    # Calculate FIM log-trace
+    fim_logtr = train_diag_fim_logtr(args, model, dataset_name)
+    print(f"FIM Log-Trace: {fim_logtr:.4f}")
+    
+    return fim_logtr
+
 def recalculate_fim_multitask(args, datasets, task_vectors, alpha, pretrained_path):
     """Recalculate FIM log-trace for multitask model at given alpha."""
     print(f"\nRecalculating FIM for multitask model with alpha={alpha}")
@@ -41,8 +63,7 @@ def recalculate_fim_multitask(args, datasets, task_vectors, alpha, pretrained_pa
     combined_vector = sum(task_vectors.values(), start=None)
     
     # Apply the combined vector to get merged encoder
-    with open(pretrained_path, "rb") as f:
-        pretrained_model = torch.load(f, map_location=args.device)
+    pretrained_model = open(pretrained_path, "rb")
     merged_encoder = combined_vector.apply_to(pretrained_model, scaling_coef=alpha)
     merged_encoder = merged_encoder.to(args.device)
     merged_encoder.eval()
@@ -98,19 +119,19 @@ def main():
         print("Warning: Could not find previous task addition results")
         best_alpha = None
     
+    # Build task vectors
+    from task_vectors import NonLinearTaskVector
+    task_vectors = {}
+    for dataset_name in datasets:
+        finetuned_path = f"{args.save}/{dataset_name}_finetuned.pt"
+        if os.path.exists(finetuned_path):
+            task_vectors[dataset_name] = NonLinearTaskVector(
+                pretrained_checkpoint=pretrained_path,
+                finetuned_checkpoint=finetuned_path
+            )
+    
     if best_alpha is not None:
         print(f"\nProcessing multitask model at best alpha ({best_alpha})...")
-        
-        # Build task vectors
-        from task_vectors import NonLinearTaskVector
-        task_vectors = {}
-        for dataset_name in datasets:
-            finetuned_path = f"{args.save}/{dataset_name}_finetuned.pt"
-            if os.path.exists(finetuned_path):
-                task_vectors[dataset_name] = NonLinearTaskVector(
-                    pretrained_checkpoint=pretrained_path,
-                    finetuned_checkpoint=finetuned_path
-                )
         
         # Recalculate multitask FIM values
         multitask_fim_results = recalculate_fim_multitask(
@@ -127,6 +148,27 @@ def main():
                 'alpha': best_alpha,
                 'results': multitask_fim_results
             }, f, indent=4)
+            
+        # Process single-task scaled models
+        print("\nProcessing single-task scaled models...")
+        single_task_scaled_results = {}
+        
+        for dataset_name, task_vector in task_vectors.items():
+            fim_logtr = recalculate_fim_scaled_single_task(
+                args,
+                dataset_name,
+                task_vector,
+                best_alpha,
+                pretrained_path
+            )
+            single_task_scaled_results[dataset_name] = {
+                'alpha': best_alpha,
+                'fim_logtr': fim_logtr
+            }
+        
+        # Save single-task scaled results
+        with open(f"{args.save}/single_task_scaled_fim_results.json", 'w') as f:
+            json.dump(single_task_scaled_results, f, indent=4)
     
     print("\nFIM recalculation complete!")
 
