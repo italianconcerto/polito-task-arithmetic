@@ -299,7 +299,7 @@ def main():
     best_alpha = 0
     best_avg_normalized_acc = 0
     best_results = None
-    all_results = []
+    all_results = {}
     
     for alpha in tqdm(alphas, desc="Testing alphas"):
         results = evaluate_multitask_model(
@@ -309,7 +309,7 @@ def main():
             alpha=alpha,
             pretrained_path=pretrained_path
         )
-        all_results.append(results)
+        all_results[f"{alpha:.2f}"] = results
         
         avg_normalized_acc = results["average"]["normalized"]["val"]
         
@@ -325,7 +325,7 @@ def main():
     final_results = {
         "best_alpha": best_alpha,
         "best_results": best_results,
-        "all_results": all_results
+        "results": all_results
     }
     
     with open(f"{args.save}/task_addition_results.json", "w") as f:
