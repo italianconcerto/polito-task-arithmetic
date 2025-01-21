@@ -342,7 +342,7 @@ def main():
     print("\nFinal Results:")
     print(f"Best alpha: {best_alpha:.2f}")
     print(f"Best average normalized accuracy: {best_avg_normalized_acc:.4f}")
-    print(f"Best average absolute accuracy: {best_results['average']:.4f}")
+    
 
 if __name__ == "__main__":
     main()
