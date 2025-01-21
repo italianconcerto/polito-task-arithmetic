@@ -3,6 +3,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from torch.utils.data import WeightedRandomSampler
 from tqdm.auto import tqdm
 from args import parse_arguments
 from datasets.common import get_dataloader, maybe_dictionarize
@@ -10,6 +11,23 @@ from datasets.registry import get_dataset
 from modeling import ImageClassifier, ImageEncoder
 from heads import get_classification_head
 from utils import torch_save
+
+def get_balanced_sampler(dataset):
+    targets = []
+    for _, label in dataset:
+        if isinstance(label, dict):
+            label = label['labels']
+        targets.append(label)
+    
+    targets = torch.tensor(targets)
+    class_counts = torch.bincount(targets)
+    total_samples = len(targets)
+    
+    class_weights = total_samples / (len(class_counts) * class_counts.float())
+    weights = class_weights[targets]
+    
+    sampler = WeightedRandomSampler(weights, num_samples=len(weights), replacement=True)
+    return sampler
 
 def train_one_epoch(model, train_loader, optimizer, criterion, args):
     model.train()
@@ -86,7 +104,19 @@ def main():
             batch_size=args.batch_size,
             num_workers=2
         )
-        train_loader = get_dataloader(dataset, is_train=True, args=args)
+        if args.balanced_sampler:
+            # Create balanced sampler
+            sampler = get_balanced_sampler(dataset.train_dataset)
+            
+            # Create dataloader with balanced sampler
+            train_loader = torch.utils.data.DataLoader(
+                dataset.train_dataset,
+                batch_size=args.batch_size,
+                sampler=sampler,
+                num_workers=2
+            )
+        else:
+            train_loader = get_dataloader(dataset, is_train=True, args=args)
         
         # Training loop
         for epoch in range(epochs_mapping[dataset_name]):
@@ -100,7 +130,7 @@ def main():
         
         # Save the full encoder model
         save_path = f"{args.save}/{dataset_name}_finetuned.pt"
-        torch.save(model.image_encoder, save_path)  # Save full encoder model
+        torch.save(model.image_encoder, save_path)
         print(f"Saved model to {save_path}")
 
 if __name__ == "__main__":

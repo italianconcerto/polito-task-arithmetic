@@ -125,6 +125,12 @@ def parse_arguments():
         default=21,
         help="Number of evaluation points used to find optimal coefficient in task arithmetic.",
     )
+    parser.add_argument(
+        "--balanced-sampler",
+        type=bool,
+        default=False,
+        help="Whether to use a balanced sampler for training.",
+    )
     parsed_args = parser.parse_args()
     if torch.backends.mps.is_available():
         parsed_args.device = "mps"
