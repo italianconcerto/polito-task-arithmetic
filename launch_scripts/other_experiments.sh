@@ -29,20 +29,19 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
-: << 'EOF'
-# Create necessary directories
-mkdir -p data
-mkdir -p logs
-mkdir -p other_results/batch_size
-mkdir -p other_results/learning_rate
-mkdir -p other_results/weight_decay
-mkdir -p other_results/stopping_criteria
 
-EOF
+# Create necessary directories
+mkdir -p data;
+mkdir -p logs;
+mkdir -p other_results/batch_size;
+mkdir -p other_results/learning_rate;
+mkdir -p other_results/weight_decay;
+mkdir -p other_results/stopping_criteria;
+
 
 # Get current timestamp for log file
 timestamp=$(date +"%Y%m%d_%H%M%S")
-log_file="logs/experiment_${timestamp}.log"
+log_file="logs/other_experiments_${timestamp}.log"
 
 # Function to log messages to both console and file
 log() {
@@ -59,7 +58,6 @@ run_cmd() {
     fi
 }
 
-: << 'EOF'
 
 # Start logging
 log "=== Starting experiment at $(date) ==="
@@ -198,7 +196,6 @@ do
         find ./other_results/weight_decay/$weight_decay -name "*.pt" ! -name "pretrained.pt" ! -name "*_finetuned.pt" -delete
     fi
 done
-EOF
 
 
 COMMON_ARGS="--data-location ./data \
@@ -241,7 +238,7 @@ else
     find ./other_results/stopping_criteria/val_acc -name "*.pt" ! -name "pretrained.pt" ! -name "*_finetuned.pt" -delete
 fi
 
-: << 'EOF'
+
 
 COMMON_ARGS="--data-location ./data \
     --save ./other_results/stopping_criteria/fim_logtr \
@@ -285,4 +282,3 @@ fi
 
 log "\n=== Experiment completed at $(date) ==="
 
-EOF

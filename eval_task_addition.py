@@ -1,4 +1,5 @@
 import json
+import random
 import torch
 from tqdm import tqdm
 from args import parse_arguments
@@ -7,7 +8,7 @@ from datasets.registry import get_dataset
 from modeling import ImageClassifier, ImageEncoder
 from heads import get_classification_head
 from task_vectors import NonLinearTaskVector
-from utils import DotDict
+from utils import DotDict, train_diag_fim_logtr
 
 def evaluate(model, loader, args, desc=None):
     model.eval()
@@ -29,6 +30,80 @@ def evaluate(model, loader, args, desc=None):
         print(f"{desc}: {acc:.2f}%")
     return acc
 
+
+def evaluate_singletask_model(args, datasets, task_vectors, alpha, pretrained_path):
+    results = {}
+    
+    for dataset_name in tqdm(datasets):
+        print(f"\nEvaluating singletask {dataset_name} scaled with alpha {alpha}")
+        task_vector = task_vectors[dataset_name]
+        pretrained_model = open(pretrained_path, "rb")
+        # Maybe should do this?
+        #----
+        # merged_encoder = pretrained_model
+        # for vector in task_vectors.values():
+        #     merged_encoder = vector.apply_to(merged_encoder, scaling_coef=alpha)
+        #----
+        encoder = task_vector.apply_to(pretrained_model, scaling_coef=alpha)
+        encoder = encoder.to(args.device)
+        pretrained_model.close()
+        encoder.eval()
+        
+        
+        head = get_classification_head(args, f"{dataset_name}Val")
+        head = head.to(args.device)
+        model = ImageClassifier(encoder, head)
+        model = model.to(args.device)
+        model.eval()  
+
+        # Evaluate on train set
+        train_dataset = get_dataset(
+            f"{dataset_name}Val",
+            preprocess=model.train_preprocess,
+            location=args.data_location,
+            batch_size=args.batch_size,
+            num_workers=2
+        )
+        train_loader = get_dataloader(train_dataset, is_train=True, args=args)
+        train_acc = evaluate(model, train_loader, args)
+        
+        # Evaluate on validation set
+        val_dataset = get_dataset(
+            f"{dataset_name}Val",
+            preprocess=model.val_preprocess,
+            location=args.data_location,
+            batch_size=args.batch_size,
+            num_workers=2
+        )
+        val_loader = get_dataloader(val_dataset, is_train=False, args=args)
+        val_acc = evaluate(model, val_loader, args, desc=f"Validating {dataset_name}")
+        
+        # Evaluate on test set
+        test_dataset = get_dataset(
+            dataset_name,
+            preprocess=model.val_preprocess,
+            location=args.data_location,
+            batch_size=args.batch_size,
+            num_workers=2
+        )
+        test_loader = get_dataloader(test_dataset, is_train=False, args=args)
+        test_acc = evaluate(model, test_loader, args, desc=f"Testing {dataset_name}")
+        
+        fim_logtr = train_diag_fim_logtr(args, model, dataset_name + "Val")
+        
+        results[dataset_name] = {
+            "train_acc": train_acc,
+            "val_acc": val_acc,
+            "test_acc": test_acc,
+            "fim_logtr": fim_logtr
+        }
+        
+
+    return results
+        
+        
+
+
 def evaluate_multitask_model(args, datasets, task_vectors, alpha, pretrained_path):
     results = {}
     
@@ -39,6 +114,12 @@ def evaluate_multitask_model(args, datasets, task_vectors, alpha, pretrained_pat
         
     # Apply the combined vector to get merged encoder
     pretrained_model = open(pretrained_path, "rb")
+    # Maybe should do this?
+    #----
+    # merged_encoder = pretrained_model
+    # for vector in task_vectors.values():
+    #     merged_encoder = vector.apply_to(merged_encoder, scaling_coef=alpha)
+    #----
     merged_encoder = combined_vector.apply_to(pretrained_model, scaling_coef=alpha)
     merged_encoder = merged_encoder.to(args.device)
     pretrained_model.close()
@@ -50,7 +131,10 @@ def evaluate_multitask_model(args, datasets, task_vectors, alpha, pretrained_pat
     
     # Evaluate on each dataset
     absolute_accs = []
-    normalized_accs = []
+    val_normalized_accs = []
+    train_normalized_accs = []
+    test_normalized_accs = []
+    fim_logtrs = []
     
     for dataset_name in datasets:
         print(f"\nEvaluating {dataset_name}...")
@@ -62,8 +146,22 @@ def evaluate_multitask_model(args, datasets, task_vectors, alpha, pretrained_pat
         model.eval()  # Ensure evaluation mode
         
         # Get single-task accuracy for normalization
-        single_task_acc = single_task_results[dataset_name]["test_acc"]
+        single_task_val_acc = single_task_results[dataset_name]["val_acc"]
+        single_task_train_acc = single_task_results[dataset_name]["train_acc"]
+        single_task_test_acc = single_task_results[dataset_name]["test_acc"]
         
+        # Evaluate on validation set
+        train_dataset = get_dataset(
+            f"{dataset_name}Val",
+            preprocess=model.train_preprocess,
+            location=args.data_location,
+            batch_size=args.batch_size,
+            num_workers=2
+        )
+        train_loader = get_dataloader(train_dataset, is_train=True, args=args)
+        train_acc = evaluate(model, train_loader, args, desc=f"Training {dataset_name}")
+
+
         # Evaluate on validation set
         val_dataset = get_dataset(
             f"{dataset_name}Val",
@@ -88,37 +186,66 @@ def evaluate_multitask_model(args, datasets, task_vectors, alpha, pretrained_pat
         
         # Store accuracies
         absolute_accs.append(test_acc)
-        normalized_accs.append(test_acc / single_task_acc)
         
+        train_normalized_accs.append(train_acc / single_task_train_acc)
+        val_normalized_accs.append(val_acc / single_task_val_acc)
+        test_normalized_accs.append(test_acc / single_task_test_acc)
+        
+        fim_logtr = train_diag_fim_logtr(args, model, dataset_name+"Val")
+        fim_logtrs.append(fim_logtr)
         results[dataset_name] = {
+            "train_acc": train_acc,
             "val_acc": val_acc,
             "test_acc": test_acc,
-            "normalized_acc": test_acc / single_task_acc
+            "val_normalized_acc": val_acc / single_task_val_acc,
+            "train_normalized_acc": train_acc / single_task_train_acc,
+            "test_normalized_acc": test_acc / single_task_test_acc,
+            "fim_logtr": fim_logtr
         }
         
         # Print current results
         print(f"{dataset_name} Results:")
+        print(f"  Train Acc: {train_acc:.2f}%")
         print(f"  Val Acc: {val_acc:.2f}%")
         print(f"  Test Acc: {test_acc:.2f}%")
-        print(f"  Normalized Acc: {(test_acc/single_task_acc):.4f}")
+        print(f"  Normalized Acc: {(test_acc/single_task_val_acc):.4f}")
     
     # Calculate averages
     avg_absolute_acc = sum(absolute_accs) / len(absolute_accs)
-    avg_normalized_acc = sum(normalized_accs) / len(normalized_accs)
+    avg_normalized_acc = sum(val_normalized_accs) / len(val_normalized_accs)
+    avg_train_normalized_acc = sum(train_normalized_accs) / len(train_normalized_accs)
+    avg_val_normalized_acc = sum(val_normalized_accs) / len(val_normalized_accs)
+    avg_test_normalized_acc = sum(test_normalized_accs) / len(test_normalized_accs)
+    avg_fim_logtr = sum(fim_logtrs) / len(fim_logtrs)
     
     results["average"] = {
         "absolute_acc": avg_absolute_acc,
-        "normalized_acc": avg_normalized_acc
+        "normalized_acc": avg_normalized_acc,
+        "train_acc": avg_train_normalized_acc,
+        "val_acc": avg_val_normalized_acc,
+        "test_acc": avg_test_normalized_acc,
+        "fim_logtr": avg_fim_logtr
     }
     
     print(f"\nAverage Results for alpha = {alpha:.2f}:")
     print(f"  Absolute Acc: {avg_absolute_acc:.2f}%")
     print(f"  Normalized Acc: {avg_normalized_acc:.4f}")
+    print(f"  Average FIM Log-Trace: {avg_fim_logtr:.4f}")
+    print(f"  Average Train Acc: {avg_train_normalized_acc:.4f}")
+    print(f"  Average Val Acc: {avg_val_normalized_acc:.4f}")
+    print(f"  Average Test Acc: {avg_test_normalized_acc:.4f}")
     
     return results
 
 def main():
     args = parse_arguments()
+    
+    if args.seed is not None:
+        torch.manual_seed(args.seed)
+        torch.cuda.manual_seed_all(args.seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+        random.seed(args.seed)
     
     # Set device to CUDA if available, CPU as fallback
     if torch.cuda.is_available():
@@ -129,7 +256,7 @@ def main():
         args.device = torch.device('cpu')
         print("Using CPU device")
     
-    datasets = ["DTD", "EuroSAT", "GTSRB", "MNIST", "RESISC45", "SVHN"]
+    datasets = args.eval_datasets
     
     pretrained_path = f"{args.save}/pretrained.pt"
     
@@ -160,6 +287,7 @@ def main():
         
         avg_normalized_acc = results["average"]["normalized_acc"]
         
+        
         if avg_normalized_acc > best_avg_normalized_acc:
             best_avg_normalized_acc = avg_normalized_acc
             best_alpha = alpha
@@ -174,7 +302,13 @@ def main():
     
     with open(f"{args.save}/task_addition_results.json", "w") as f:
         json.dump(final_results, f, indent=2)
+        
+    singletask_scaled_results = evaluate_singletask_model(args, datasets, task_vectors, best_alpha, pretrained_path)
+
+    with open(f"{args.save}/single_task_scaled_results.json", "w") as f:
+        json.dump(singletask_scaled_results, f, indent=4)
     
+    print(f"Saved results to {args.save}/single_task_scaled_results.json")
     print("\nFinal Results:")
     print(f"Best alpha: {best_alpha:.2f}")
     print(f"Best average normalized accuracy: {best_avg_normalized_acc:.4f}")

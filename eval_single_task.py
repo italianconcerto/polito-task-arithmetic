@@ -1,4 +1,5 @@
 import json
+import random
 import torch
 import torch.nn as nn
 from tqdm.auto import tqdm
@@ -45,6 +46,17 @@ def evaluate_single_task(args, dataset_name):
     
     results = {}
     
+    train_dataset = get_dataset(
+        f"{dataset_name}Val",
+        preprocess=model.train_preprocess,
+        location=args.data_location,
+        batch_size=args.batch_size,
+        num_workers=2
+    )
+    train_loader = get_dataloader(train_dataset, is_train=True, args=args)
+    train_acc = evaluate(model, train_loader, args)
+    results['train_acc'] = train_acc
+    
     # Evaluate on validation set
     val_dataset = get_dataset(
         f"{dataset_name}Val",
@@ -70,7 +82,7 @@ def evaluate_single_task(args, dataset_name):
     results['test_acc'] = test_acc
     
     # Compute Fisher Information Matrix log-trace
-    fim_logtr = train_diag_fim_logtr(args, model, dataset_name)
+    fim_logtr = train_diag_fim_logtr(args, model, dataset_name+"Val")
     results['fim_logtr'] = fim_logtr
     
     print(f"\nResults for {dataset_name}:")
@@ -83,7 +95,14 @@ def evaluate_single_task(args, dataset_name):
 def main():
     args = parse_arguments()
     
-    datasets = ["DTD", "EuroSAT", "GTSRB", "MNIST", "RESISC45", "SVHN"]
+    if args.seed is not None:
+        torch.manual_seed(args.seed)
+        torch.cuda.manual_seed_all(args.seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+        random.seed(args.seed)
+    
+    datasets = args.eval_datasets
     all_results = {}
     
     for dataset_name in datasets:
