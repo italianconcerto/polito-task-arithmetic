@@ -217,25 +217,30 @@ def evaluate_multitask_model(args, datasets, task_vectors, alpha, pretrained_pat
         print(f"  Normalized Acc: {(test_acc/single_task_val_acc):.4f}")
     
     
-    results['average']['normalized'] = {
-        "val": val_normalized_accs,
-        "train": train_normalized_accs,
-        "test": test_normalized_accs,
-    }
-    results["average"]["absolute"] = {
-        "test": test_absolute_accs,
-        "train": train_absolute_accs,
-        "val": val_absolute_accs,
-        "fim_logtr": fim_logtrs,
-    }
     
     # Calculate averages
-    avg_absolute_acc = sum(test_absolute_accs) / len(test_absolute_accs)
-    avg_val_normalized_acc = sum(val_normalized_accs) / len(val_normalized_accs)
+    avg_train_absolute_acc = sum(train_absolute_accs) / len(train_absolute_accs)
+    avg_val_absolute_acc = sum(val_absolute_accs) / len(val_absolute_accs)
+    avg_test_absolute_acc = sum(test_absolute_accs) / len(test_absolute_accs)
+    
     avg_train_normalized_acc = sum(train_normalized_accs) / len(train_normalized_accs)
+    avg_val_normalized_acc = sum(val_normalized_accs) / len(val_normalized_accs)
     avg_test_normalized_acc = sum(test_normalized_accs) / len(test_normalized_accs)
+    
     avg_fim_logtr = sum(fim_logtrs) / len(fim_logtrs)
     
+    
+    results['average']['normalized'] = {
+        "val": avg_val_normalized_acc,
+        "train": avg_train_normalized_acc,
+        "test": avg_test_normalized_acc,
+    }
+    results["average"]["absolute"] = {
+        "test": avg_test_absolute_acc,
+        "train": avg_train_absolute_acc,
+        "val": avg_val_absolute_acc,
+        "fim_logtr": avg_fim_logtr,
+    }
     
     # results["average"] = {
     #     "avg_absolute_acc": avg_absolute_acc,
@@ -247,7 +252,7 @@ def evaluate_multitask_model(args, datasets, task_vectors, alpha, pretrained_pat
     # }
     
     print(f"\nAverage Results for alpha = {alpha:.2f}:")
-    print(f"  Absolute Acc: {avg_absolute_acc:.2f}%")
+    print(f"  Absolute Acc: {avg_test_absolute_acc:.2f}%")
     print(f"  Normalized Acc (from Validation): {avg_val_normalized_acc:.4f}")
     print(f"  Average FIM Log-Trace: {avg_fim_logtr:.4f}")
     print(f"  Average Train Acc: {avg_train_normalized_acc:.4f}")
