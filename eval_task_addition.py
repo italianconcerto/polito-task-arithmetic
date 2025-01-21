@@ -197,16 +197,18 @@ def evaluate_multitask_model(args, datasets, task_vectors, alpha, pretrained_pat
         fim_logtr = train_diag_fim_logtr(args, model, dataset_name+"Val")
         fim_logtrs.append(fim_logtr)
         
-        results[dataset_name] = {
-            "train_acc": train_acc,
-            "val_acc": val_acc,
-            "test_acc": test_acc,
-            "val_normalized_acc": val_acc / single_task_val_acc,
-            "train_normalized_acc": train_acc / single_task_train_acc,
-            "test_normalized_acc": test_acc / single_task_test_acc,
+        results[dataset_name]['absolute'] = {
+            "train": train_acc,
+            "val": val_acc,
+            "test": test_acc,
             "fim_logtr": fim_logtr
         }
         
+        results[dataset_name]['normalized'] = {
+            "train": train_acc / single_task_train_acc,
+            "val": val_acc / single_task_val_acc,
+            "test": test_acc / single_task_test_acc,
+        }
         # Print current results
         print(f"{dataset_name} Results:")
         print(f"  Train Acc: {train_acc:.2f}%")
@@ -215,16 +217,16 @@ def evaluate_multitask_model(args, datasets, task_vectors, alpha, pretrained_pat
         print(f"  Normalized Acc: {(test_acc/single_task_val_acc):.4f}")
     
     
-    results['normalized'] = {
-        "val_normalized_accs": val_normalized_accs,
-        "train_normalized_accs": train_normalized_accs,
-        "test_normalized_accs": test_normalized_accs,
+    results['average']['normalized'] = {
+        "val": val_normalized_accs,
+        "train": train_normalized_accs,
+        "test": test_normalized_accs,
     }
-    results["absolute"] = {
-        "test_absolute_accs": test_absolute_accs,
-        "train_absolute_accs": train_absolute_accs,
-        "val_absolute_accs": val_absolute_accs,
-        "fim_logtrs": fim_logtrs,
+    results["average"]["absolute"] = {
+        "test": test_absolute_accs,
+        "train": train_absolute_accs,
+        "val": val_absolute_accs,
+        "fim_logtr": fim_logtrs,
     }
     
     # Calculate averages
@@ -235,14 +237,14 @@ def evaluate_multitask_model(args, datasets, task_vectors, alpha, pretrained_pat
     avg_fim_logtr = sum(fim_logtrs) / len(fim_logtrs)
     
     
-    results["average"] = {
-        "avg_absolute_acc": avg_absolute_acc,
-        "avg_val_normalized_acc": avg_val_normalized_acc,
-        "avg_train_normalized_acc": avg_train_normalized_acc,
-        "avg_test_normalized_acc": avg_test_normalized_acc,
-        "normalized_acc": avg_val_normalized_acc,
-        "avg_fim_logtr": avg_fim_logtr
-    }
+    # results["average"] = {
+    #     "avg_absolute_acc": avg_absolute_acc,
+    #     "avg_val_normalized_acc": avg_val_normalized_acc,
+    #     "avg_train_normalized_acc": avg_train_normalized_acc,
+    #     "avg_test_normalized_acc": avg_test_normalized_acc,
+    #     "normalized_acc": avg_val_normalized_acc,
+    #     "avg_fim_logtr": avg_fim_logtr
+    # }
     
     print(f"\nAverage Results for alpha = {alpha:.2f}:")
     print(f"  Absolute Acc: {avg_absolute_acc:.2f}%")
