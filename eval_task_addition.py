@@ -310,9 +310,10 @@ def main():
             pretrained_path=pretrained_path
         )
         all_results.append(results)
-        avg_normalized_acc = results["average"]["normalized_acc"]
         
-        assert avg_normalized_acc == results["average"]["avg_val_normalized_acc"]
+        avg_normalized_acc = results["average"]["normalized"]["val"]
+        
+        
         
         if avg_normalized_acc > best_avg_normalized_acc:
             best_avg_normalized_acc = avg_normalized_acc
@@ -339,7 +340,7 @@ def main():
     print("\nFinal Results:")
     print(f"Best alpha: {best_alpha:.2f}")
     print(f"Best average normalized accuracy: {best_avg_normalized_acc:.4f}")
-    print(f"Best average absolute accuracy: {best_results['average']['absolute_acc']:.4f}")
+    print(f"Best average absolute accuracy: {best_results['average']:.4f}")
 
 if __name__ == "__main__":
     main()
