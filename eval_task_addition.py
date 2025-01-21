@@ -197,6 +197,7 @@ def evaluate_multitask_model(args, datasets, task_vectors, alpha, pretrained_pat
         fim_logtr = train_diag_fim_logtr(args, model, dataset_name+"Val")
         fim_logtrs.append(fim_logtr)
         
+        results[dataset_name] = {}
         results[dataset_name]['absolute'] = {
             "train": train_acc,
             "val": val_acc,
@@ -229,7 +230,7 @@ def evaluate_multitask_model(args, datasets, task_vectors, alpha, pretrained_pat
     
     avg_fim_logtr = sum(fim_logtrs) / len(fim_logtrs)
     
-    
+    results['average'] = {}
     results['average']['normalized'] = {
         "val": avg_val_normalized_acc,
         "train": avg_train_normalized_acc,
@@ -310,6 +311,7 @@ def main():
             pretrained_path=pretrained_path
         )
         all_results[f"{alpha:.2f}"] = results
+        
         
         avg_normalized_acc = results["average"]["normalized"]["val"]
         
