@@ -197,7 +197,9 @@ def evaluate_multitask_model(args, datasets, task_vectors, alpha, pretrained_pat
             "train_acc": train_acc,
             "val_acc": val_acc,
             "test_acc": test_acc,
-            "normalized_acc": val_acc / single_task_val_acc,
+            "val_normalized_acc": val_acc / single_task_val_acc,
+            "train_normalized_acc": train_acc / single_task_train_acc,
+            "test_normalized_acc": test_acc / single_task_test_acc,
             "fim_logtr": fim_logtr
         }
         
