@@ -197,16 +197,19 @@ def evaluate_multitask_model(args, datasets, task_vectors, alpha, pretrained_pat
         fim_logtr = train_diag_fim_logtr(args, model, dataset_name+"Val")
         fim_logtrs.append(fim_logtr)
         
-        results[dataset_name] = {
-            "train_acc": train_acc,
-            "val_acc": val_acc,
-            "test_acc": test_acc,
-            "val_normalized_acc": val_acc / single_task_val_acc,
-            "train_normalized_acc": train_acc / single_task_train_acc,
-            "test_normalized_acc": test_acc / single_task_test_acc,
+        results[dataset_name] = {}
+        results[dataset_name]['absolute'] = {
+            "train": train_acc,
+            "val": val_acc,
+            "test": test_acc,
             "fim_logtr": fim_logtr
         }
         
+        results[dataset_name]['normalized'] = {
+            "train": train_acc / single_task_train_acc,
+            "val": val_acc / single_task_val_acc,
+            "test": test_acc / single_task_test_acc,
+        }
         # Print current results
         print(f"{dataset_name} Results:")
         print(f"  Train Acc: {train_acc:.2f}%")
@@ -215,37 +218,42 @@ def evaluate_multitask_model(args, datasets, task_vectors, alpha, pretrained_pat
         print(f"  Normalized Acc: {(test_acc/single_task_val_acc):.4f}")
     
     
-    results['normalized'] = {
-        "val_normalized_accs": val_normalized_accs,
-        "train_normalized_accs": train_normalized_accs,
-        "test_normalized_accs": test_normalized_accs,
-    }
-    results["absolute"] = {
-        "test_absolute_accs": test_absolute_accs,
-        "train_absolute_accs": train_absolute_accs,
-        "val_absolute_accs": val_absolute_accs,
-        "fim_logtrs": fim_logtrs,
-    }
     
     # Calculate averages
-    avg_absolute_acc = sum(test_absolute_accs) / len(test_absolute_accs)
-    avg_val_normalized_acc = sum(val_normalized_accs) / len(val_normalized_accs)
+    avg_train_absolute_acc = sum(train_absolute_accs) / len(train_absolute_accs)
+    avg_val_absolute_acc = sum(val_absolute_accs) / len(val_absolute_accs)
+    avg_test_absolute_acc = sum(test_absolute_accs) / len(test_absolute_accs)
+    
     avg_train_normalized_acc = sum(train_normalized_accs) / len(train_normalized_accs)
+    avg_val_normalized_acc = sum(val_normalized_accs) / len(val_normalized_accs)
     avg_test_normalized_acc = sum(test_normalized_accs) / len(test_normalized_accs)
+    
     avg_fim_logtr = sum(fim_logtrs) / len(fim_logtrs)
     
-    
-    results["average"] = {
-        "avg_absolute_acc": avg_absolute_acc,
-        "avg_val_normalized_acc": avg_val_normalized_acc,
-        "avg_train_normalized_acc": avg_train_normalized_acc,
-        "avg_test_normalized_acc": avg_test_normalized_acc,
-        "normalized_acc": avg_val_normalized_acc,
-        "avg_fim_logtr": avg_fim_logtr
+    results['average'] = {}
+    results['average']['normalized'] = {
+        "val": avg_val_normalized_acc,
+        "train": avg_train_normalized_acc,
+        "test": avg_test_normalized_acc,
+    }
+    results["average"]["absolute"] = {
+        "test": avg_test_absolute_acc,
+        "train": avg_train_absolute_acc,
+        "val": avg_val_absolute_acc,
+        "fim_logtr": avg_fim_logtr,
     }
     
+    # results["average"] = {
+    #     "avg_absolute_acc": avg_absolute_acc,
+    #     "avg_val_normalized_acc": avg_val_normalized_acc,
+    #     "avg_train_normalized_acc": avg_train_normalized_acc,
+    #     "avg_test_normalized_acc": avg_test_normalized_acc,
+    #     "normalized_acc": avg_val_normalized_acc,
+    #     "avg_fim_logtr": avg_fim_logtr
+    # }
+    
     print(f"\nAverage Results for alpha = {alpha:.2f}:")
-    print(f"  Absolute Acc: {avg_absolute_acc:.2f}%")
+    print(f"  Absolute Acc: {avg_test_absolute_acc:.2f}%")
     print(f"  Normalized Acc (from Validation): {avg_val_normalized_acc:.4f}")
     print(f"  Average FIM Log-Trace: {avg_fim_logtr:.4f}")
     print(f"  Average Train Acc: {avg_train_normalized_acc:.4f}")
@@ -292,7 +300,7 @@ def main():
     best_alpha = 0
     best_avg_normalized_acc = 0
     best_results = None
-    all_results = []
+    all_results = {}
     
     for alpha in tqdm(alphas, desc="Testing alphas"):
         results = evaluate_multitask_model(
@@ -302,10 +310,12 @@ def main():
             alpha=alpha,
             pretrained_path=pretrained_path
         )
-        all_results.append(results)
-        avg_normalized_acc = results["average"]["normalized_acc"]
+        all_results[f"{alpha:.2f}"] = results
         
-        assert avg_normalized_acc == results["average"]["avg_val_normalized_acc"]
+        
+        avg_normalized_acc = results["average"]["normalized"]["val"]
+        
+        
         
         if avg_normalized_acc > best_avg_normalized_acc:
             best_avg_normalized_acc = avg_normalized_acc
@@ -317,7 +327,7 @@ def main():
     final_results = {
         "best_alpha": best_alpha,
         "best_results": best_results,
-        "all_results": all_results
+        "results": all_results
     }
     
     with open(f"{args.save}/task_addition_results.json", "w") as f:
@@ -332,7 +342,7 @@ def main():
     print("\nFinal Results:")
     print(f"Best alpha: {best_alpha:.2f}")
     print(f"Best average normalized accuracy: {best_avg_normalized_acc:.4f}")
-    print(f"Best average absolute accuracy: {best_results['average']['absolute_acc']:.4f}")
+    
 
 if __name__ == "__main__":
     main()
