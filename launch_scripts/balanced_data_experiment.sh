@@ -27,20 +27,35 @@ BASE_ARGS="--data-location ./data --balanced-sampler True --model ViT-B-32 --bat
 
 log "\n=== Base configuration ==="
 run_cmd "python finetune.py $BASE_ARGS --save ./balanced_data_results/base --lr 1e-4 --wd 0.0"
+run_cmd "python eval_single_task.py $BASE_ARGS --save ./balanced_data_results/base --lr 1e-4 --wd 0.0"
+run_cmd "python eval_task_addition.py $BASE_ARGS --save ./balanced_data_results/base --lr 1e-4 --wd 0.0"
 
 log "\n=== Best single task accuracy configuration ==="
 run_cmd "python finetune.py $BASE_ARGS --save ./balanced_data_results/best_single_task --lr 5e-4 --wd 0.0"
+run_cmd "python eval_single_task.py $BASE_ARGS --save ./balanced_data_results/best_single_task --lr 5e-4 --wd 0.0"
+run_cmd "python eval_task_addition.py $BASE_ARGS --save ./balanced_data_results/best_single_task --lr 5e-4 --wd 0.0"
 
 log "\n=== Best normalized accuracy configuration ==="
 run_cmd "python finetune.py $BASE_ARGS --save ./balanced_data_results/best_normalized --lr 1e-4 --wd 0.01"
+run_cmd "python eval_single_task.py $BASE_ARGS --save ./balanced_data_results/best_normalized --lr 1e-4 --wd 0.01"
+run_cmd "python eval_task_addition.py $BASE_ARGS --save ./balanced_data_results/best_normalized --lr 1e-4 --wd 0.01"
 
 log "\n=== Best absolute accuracy configuration ==="
 run_cmd "python finetune.py $BASE_ARGS --save ./balanced_data_results/best_absolute --lr 1e-5 --wd 0.0"
+run_cmd "python eval_single_task.py $BASE_ARGS --save ./balanced_data_results/best_absolute --lr 1e-5 --wd 0.0"
+run_cmd "python eval_task_addition.py $BASE_ARGS --save ./balanced_data_results/best_absolute --lr 1e-5 --wd 0.0"
 
 log "\n=== Best log-trace configuration ==="
 run_cmd "python finetune.py $BASE_ARGS --save ./balanced_data_results/best_log_trace --lr 1e-5 --wd 0.0"
+run_cmd "python eval_single_task.py $BASE_ARGS --save ./balanced_data_results/best_log_trace --lr 1e-5 --wd 0.0"
+run_cmd "python eval_task_addition.py $BASE_ARGS --save ./balanced_data_results/best_log_trace --lr 1e-5 --wd 0.0"
 
 log "\n=== Log-trace stopping criteria configuration ==="
 run_cmd "python finetune_log_tr_based.py $BASE_ARGS --save ./balanced_data_results/log_trace_stopping --lr 1e-4 --wd 0.0"
+run_cmd "python eval_single_task.py $BASE_ARGS --save ./balanced_data_results/log_trace_stopping --lr 1e-4 --wd 0.0"
+run_cmd "python eval_task_addition.py $BASE_ARGS --save ./balanced_data_results/log_trace_stopping --lr 1e-4 --wd 0.0"
+
+log "\n=== Cleaning up to save space ==="
+find ./balanced_data_results -name "*.pt" ! -name "pretrained.pt" ! -name "*_finetuned.pt" -delete
 
 log "\n=== Experiments completed at $(date) ==="
