@@ -45,14 +45,14 @@ run_cmd "python finetune.py $BASE_ARGS --save ./balanced_data_results/best_absol
 run_cmd "python eval_single_task.py $BASE_ARGS --save ./balanced_data_results/best_absolute --lr 1e-5 --wd 0.0"
 run_cmd "python eval_task_addition.py $BASE_ARGS --save ./balanced_data_results/best_absolute --lr 1e-5 --wd 0.0"
 
-log "\n=== Best log-trace configuration ==="
-run_cmd "python finetune.py $BASE_ARGS --save ./balanced_data_results/best_log_trace --lr 1e-5 --wd 0.0"
-run_cmd "python eval_single_task.py $BASE_ARGS --save ./balanced_data_results/best_log_trace --lr 1e-5 --wd 0.0"
-run_cmd "python eval_task_addition.py $BASE_ARGS --save ./balanced_data_results/best_log_trace --lr 1e-5 --wd 0.0"
+# log "\n=== Best log-trace configuration ==="
+# run_cmd "python finetune.py $BASE_ARGS --save ./balanced_data_results/best_log_trace --lr 1e-5 --wd 0.0"
+# run_cmd "python eval_single_task.py $BASE_ARGS --save ./balanced_data_results/best_log_trace --lr 1e-5 --wd 0.0"
+# run_cmd "python eval_task_addition.py $BASE_ARGS --save ./balanced_data_results/best_log_trace --lr 1e-5 --wd 0.0"
 
-log "\n=== Log-trace stopping criteria configuration ==="
-run_cmd "python finetune_log_tr_based.py $BASE_ARGS --save ./balanced_data_results/log_trace_stopping --lr 1e-4 --wd 0.0"
-run_cmd "python eval_single_task.py $BASE_ARGS --save ./balanced_data_results/log_trace_stopping --lr 1e-4 --wd 0.0"
-run_cmd "python eval_task_addition.py $BASE_ARGS --save ./balanced_data_results/log_trace_stopping --lr 1e-4 --wd 0.0"
+# log "\n=== Log-trace stopping criteria configuration ==="
+# run_cmd "python finetune_log_tr_based.py $BASE_ARGS --save ./balanced_data_results/log_trace_stopping --lr 1e-4 --wd 0.0"
+# run_cmd "python eval_single_task.py $BASE_ARGS --save ./balanced_data_results/log_trace_stopping --lr 1e-4 --wd 0.0"
+# run_cmd "python eval_task_addition.py $BASE_ARGS --save ./balanced_data_results/log_trace_stopping --lr 1e-4 --wd 0.0"
 
 log "\n=== Experiments completed at $(date) ==="
