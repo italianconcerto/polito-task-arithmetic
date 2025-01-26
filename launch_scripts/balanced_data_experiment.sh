@@ -22,25 +22,33 @@ run_cmd() {
 }
 
 log "=== Starting balanced data experiments at $(date) ==="
-
 BASE_ARGS="--data-location ./data --balanced-sampler True --model ViT-B-32 --batch-size 32"
 
+log "\n=== Initializing pre-trained model ==="
+run_cmd "python init_pretrained.py $BASE_ARGS --save ./balanced_data_results/base"
+
+
+
 log "\n=== Base configuration ==="
-run_cmd "python finetune.py $BASE_ARGS --save ./balanced_data_results/base --lr 1e-4 --wd 0.0"
-run_cmd "python eval_single_task.py $BASE_ARGS --save ./balanced_data_results/base --lr 1e-4 --wd 0.0"
+run_cmd "python init_pretrained.py $BASE_ARGS --save ./balanced_data_results/base"
+# run_cmd "python finetune.py $BASE_ARGS --save ./balanced_data_results/base --lr 1e-4 --wd 0.0"
+# run_cmd "python eval_single_task.py $BASE_ARGS --save ./balanced_data_results/base --lr 1e-4 --wd 0.0"
 run_cmd "python eval_task_addition.py $BASE_ARGS --save ./balanced_data_results/base --lr 1e-4 --wd 0.0"
 
 log "\n=== Best single task accuracy configuration ==="
+run_cmd "python init_pretrained.py $BASE_ARGS --save ./balanced_data_results/best_single_task"
 run_cmd "python finetune.py $BASE_ARGS --save ./balanced_data_results/best_single_task --lr 5e-4 --wd 0.0"
 run_cmd "python eval_single_task.py $BASE_ARGS --save ./balanced_data_results/best_single_task --lr 5e-4 --wd 0.0"
 run_cmd "python eval_task_addition.py $BASE_ARGS --save ./balanced_data_results/best_single_task --lr 5e-4 --wd 0.0"
 
 log "\n=== Best normalized accuracy configuration ==="
+run_cmd "python init_pretrained.py $BASE_ARGS --save ./balanced_data_results/best_normalized"
 run_cmd "python finetune.py $BASE_ARGS --save ./balanced_data_results/best_normalized --lr 1e-4 --wd 0.01"
 run_cmd "python eval_single_task.py $BASE_ARGS --save ./balanced_data_results/best_normalized --lr 1e-4 --wd 0.01"
 run_cmd "python eval_task_addition.py $BASE_ARGS --save ./balanced_data_results/best_normalized --lr 1e-4 --wd 0.01"
 
 log "\n=== Best absolute accuracy configuration ==="
+run_cmd "python init_pretrained.py $BASE_ARGS --save ./balanced_data_results/best_absolute"
 run_cmd "python finetune.py $BASE_ARGS --save ./balanced_data_results/best_absolute --lr 1e-5 --wd 0.0"
 run_cmd "python eval_single_task.py $BASE_ARGS --save ./balanced_data_results/best_absolute --lr 1e-5 --wd 0.0"
 run_cmd "python eval_task_addition.py $BASE_ARGS --save ./balanced_data_results/best_absolute --lr 1e-5 --wd 0.0"
