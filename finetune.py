@@ -3,6 +3,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from torch.utils.data import WeightedRandomSampler
 from tqdm.auto import tqdm
 from args import parse_arguments
 from datasets.common import get_dataloader, maybe_dictionarize
@@ -10,6 +11,33 @@ from datasets.registry import get_dataset
 from modeling import ImageClassifier, ImageEncoder
 from heads import get_classification_head
 from utils import torch_save
+
+def get_balanced_sampler(dataset):
+    targets = []
+    for _, label in dataset:
+        if isinstance(label, dict):
+            label = label['labels']
+        targets.append(label)
+    
+    targets = torch.tensor(targets)
+    class_counts = torch.bincount(targets)
+    min_count = class_counts.min().item()
+    num_classes = len(class_counts)
+    
+    # Create index subsets for each class
+    indices = []
+    for class_idx in range(num_classes):
+        class_indices = torch.where(targets == class_idx)[0]
+        # Randomly select min_count indices for each class
+        selected = torch.randperm(len(class_indices))[:min_count]
+        indices.append(class_indices[selected])
+    
+    # Combine and shuffle all selected indices
+    balanced_indices = torch.cat(indices)
+    balanced_indices = balanced_indices[torch.randperm(len(balanced_indices))]
+    
+    sampler = torch.utils.data.SubsetRandomSampler(balanced_indices)
+    return sampler
 
 def train_one_epoch(model, train_loader, optimizer, criterion, args):
     model.train()
@@ -86,7 +114,20 @@ def main():
             batch_size=args.batch_size,
             num_workers=2
         )
-        train_loader = get_dataloader(dataset, is_train=True, args=args)
+        if args.balanced_sampler:
+            # Create balanced sampler
+            sampler = get_balanced_sampler(dataset.train_dataset)
+            
+            # Create dataloader with balanced sampler
+            train_loader = torch.utils.data.DataLoader(
+                dataset.train_dataset,
+                batch_size=args.batch_size,
+                sampler=sampler,
+                num_workers=2,
+            )
+            
+        else:
+            train_loader = get_dataloader(dataset, is_train=True, args=args)
         
         # Training loop
         for epoch in range(epochs_mapping[dataset_name]):
@@ -100,7 +141,7 @@ def main():
         
         # Save the full encoder model
         save_path = f"{args.save}/{dataset_name}_finetuned.pt"
-        torch.save(model.image_encoder, save_path)  # Save full encoder model
+        torch.save(model.image_encoder, save_path)
         print(f"Saved model to {save_path}")
 
 if __name__ == "__main__":
