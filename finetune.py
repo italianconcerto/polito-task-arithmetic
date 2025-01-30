@@ -21,12 +21,22 @@ def get_balanced_sampler(dataset):
     
     targets = torch.tensor(targets)
     class_counts = torch.bincount(targets)
-    total_samples = len(targets)
+    min_count = class_counts.min().item()
+    num_classes = len(class_counts)
     
-    class_weights = total_samples / (len(class_counts) * class_counts.float())
-    weights = class_weights[targets]
+    # Create index subsets for each class
+    indices = []
+    for class_idx in range(num_classes):
+        class_indices = torch.where(targets == class_idx)[0]
+        # Randomly select min_count indices for each class
+        selected = torch.randperm(len(class_indices))[:min_count]
+        indices.append(class_indices[selected])
     
-    sampler = WeightedRandomSampler(weights, num_samples=len(weights), replacement=True)
+    # Combine and shuffle all selected indices
+    balanced_indices = torch.cat(indices)
+    balanced_indices = balanced_indices[torch.randperm(len(balanced_indices))]
+    
+    sampler = torch.utils.data.SubsetRandomSampler(balanced_indices)
     return sampler
 
 def train_one_epoch(model, train_loader, optimizer, criterion, args):
@@ -113,8 +123,9 @@ def main():
                 dataset.train_dataset,
                 batch_size=args.batch_size,
                 sampler=sampler,
-                num_workers=2
+                num_workers=2,
             )
+            
         else:
             train_loader = get_dataloader(dataset, is_train=True, args=args)
         
